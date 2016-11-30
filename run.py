@@ -54,11 +54,13 @@ def init(data):
 
     data.theme = data.THEMEDEEPSPACE
     data.colors = [                                                             # Every theme has the following format:
-                       [[ (74,178,255) , (0,134,255)  ],                        # Color 1 (inner, outer) [Blue]
-                        [ (198,0,0)    , (252,31,32)  ],                        # Color 2 (inner, outer) [Red]
-                        [ (206,137,48) , (255,165,21) ],                        # Color 3 (inner, outer) [Yellow]
-                        [ (239,235,223), (209,207,184)],                        # Square Inner White, Multicell White
-                          (59,59,57), (30,30,30) ]                              # Lines, Background
+                   {
+                    'A': [ (198,0,0)    , (252,31,32)  ],                       # Color 1 (inner, outer) [Red]
+                    'B': [ (74,178,255) , (0,134,255)  ],                       # Color 2 (inner, outer) [Blue]
+                    'C': [ (206,137,48) , (255,165,21) ],                       # Color 3 (inner, outer) [Yellow]
+                    'W': [ (239,235,223), (209,207,184)],                       # Square Inner White, Multicell White
+                    -2: (59,59,57), -1: (30,30,30)                              # Lines, Background
+                   }
                   ]
 
     data.level = []
@@ -104,7 +106,8 @@ def init(data):
 
     data.lineTuples = getLineTuples(data)                                       # Generate lines
 
-    data.drawnLines = {'A': [], 'B': [], 'last': None}
+    data.drawnButtons = {'A': [], 'B': [], 'last': None}
+    data.drawnLines = {'A': [], 'B': []}
 
 def run():
     class Struct(object): pass
@@ -127,40 +130,66 @@ def run():
                 x, y = event.pos
                 for button in data.buttons:
                     if event.type == MOUSEBUTTONDOWN:
-                        if (button.main or data.drawnLines['last']==button) and button.rect.collidepoint(x,y):
+                        if (button.main or data.drawnButtons['last']==button) and button.rect.collidepoint(x,y):
                             data.mouseDown = True
                             data.currColor = button.color if button.color else button.lastColor
                             data.currRow, data.currCol = button.row, button.col
                             data.newMouseDown = True
-                            data.drawnLines['last'] = button
+                            data.drawnButtons['last'] = button
                     if button.rect.collidepoint(x,y) and data.mouseDown:
                         if data.newMouseDown:
                             data.newMouseDown = False
                             if not button.isRotating and not button.hasRotated:
                                 button.isRotating = True
                                 button.rotate()
-                            if button.main: data.drawnLines[data.currColor] = [button]
+                            if button.main:
+                                data.drawnLines[data.currColor] = []
+                                while data.drawnButtons[data.currColor]:
+                                    data.drawnButtons[data.currColor][-1].active -= 1
+                                    data.drawnButtons[data.currColor][-1].img = data.drawnButtons[data.currColor][-1].inactiveImg
+                                    data.drawnButtons[data.currColor].pop()
+                                data.drawnButtons[data.currColor] = [button]
                         elif ((not button.color or button.color == data.currColor)
                                   and abs(button.row-data.currRow)<=1 and abs(button.col-data.currCol)<=1
-                                  and data.drawnLines['last']!=button):
-                            if len(data.drawnLines[data.currColor])>1 and data.drawnLines[data.currColor][-2] == button:
+                                  and data.drawnButtons['last']!=button):
+                            if len(data.drawnButtons[data.currColor])>1 and data.drawnButtons[data.currColor][-2] == button:
                                 if not button.isRotating and not button.hasRotated:
                                     button.isRotating = True
                                     button.rotate()
                                 data.currRow, data.currCol = button.row, button.col
-                                data.drawnLines[data.currColor][-1].active -= 1
-                                data.drawnLines[data.currColor][-1].img = data.drawnLines[data.currColor][-1].inactiveImg
+                                data.drawnButtons[data.currColor][-1].active -= 1
+                                data.drawnButtons[data.currColor][-1].img = data.drawnButtons[data.currColor][-1].inactiveImg
+                                data.drawnButtons['last'] = data.drawnButtons[data.currColor][-2]
+                                data.drawnButtons[data.currColor].pop()
                                 data.drawnLines[data.currColor].pop()
-                            if not data.drawnLines[data.currColor] or data.drawnLines[data.currColor][-1] != button:
-                                if button.active < button.passes:
+                            if not data.drawnButtons[data.currColor] or data.drawnButtons[data.currColor][-1] != button:
+                                lineValid = True
+                                newLine = (data.drawnButtons['last'].rect.center, button.rect.center)
+                                for key in data.drawnLines.keys():
+                                    if newLine in data.drawnLines[key] or (newLine[1], newLine[0]) in data.drawnLines[key]:
+                                        lineValid = False
+                                if abs(button.row-data.currRow)==1 and abs(button.col-data.currCol)==1:
+                                    oldC, newC = data.drawnButtons['last'].rect.center, button.rect.center
+                                    if button.row-data.currRow == 1 and button.col-data.currCol == 1:           # Nw -> SE
+                                        otherDiag = ((oldC[0]+data.cellSize, oldC[1]), (newC[0]-data.cellSize, newC[1]))
+                                    elif button.row-data.currRow == -1 and button.col-data.currCol == -1:       # SE -> NW
+                                        otherDiag = ((oldC[0]-data.cellSize, oldC[1]), (newC[0]+data.cellSize, newC[1]))
+                                    elif button.row-data.currRow == -1 and button.col-data.currCol == 1:        # SW -> NE
+                                        otherDiag = ((oldC[0]+data.cellSize, oldC[1]), (newC[0]-data.cellSize, newC[1]))
+                                    elif button.row-data.currRow == 1 and button.col-data.currCol == -1:        # NE -> SW
+                                        otherDiag = ((oldC[0]-data.cellSize, oldC[1]), (newC[0]+data.cellSize, newC[1]))
+                                    if otherDiag in data.drawnLines[key] or (otherDiag[1], otherDiag[0]) in data.drawnLines[key]:
+                                        lineValid = False
+                                if button.active < button.passes and lineValid:
                                     if not button.isRotating and not button.hasRotated:
                                         button.isRotating = True
                                         button.rotate()
                                     if not button.color: button.lastColor = data.currColor
                                     data.currRow, data.currCol = button.row, button.col
                                     button.active += 1
-                                    data.drawnLines[data.currColor].append(button)
-                                    data.drawnLines['last'] = button
+                                    data.drawnButtons[data.currColor].append(button)
+                                    data.drawnLines[data.currColor].append(newLine)
+                                    data.drawnButtons['last'] = button
                                     if button.active == button.passes: button.img = button.activeImg
                     else:
                         if button.hasRotated: button.rotateReset = True
@@ -170,6 +199,10 @@ def run():
         ##### LINES #####
         for line in data.lineTuples:
             pygame.draw.line(screen, data.colors[data.theme][-2], line[0], line[1], 5)
+
+        for key in data.drawnLines.keys():
+            for each in data.drawnLines[key]:
+                pygame.draw.line(screen, data.colors[data.theme][key][1], each[0], each[1], 20)
 
         ##### BUTTONS #####
         for button in data.buttons:
