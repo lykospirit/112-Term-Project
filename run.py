@@ -1,5 +1,7 @@
 import pygame, os, sys, string
 from button import *
+from generator import *
+from solver import *
 from pygame.locals import *
 
 def get2dIndex(L, obj):
@@ -79,9 +81,11 @@ def init(data):
 
     data.buttons = pygame.sprite.Group()                                        # Generate buttons
     data.buttonList = make2dList(data.levelHeight, data.levelWidth)
+    data.buttonCount = 0
     for row in range(data.levelHeight):
         for col in range(data.levelWidth):
             if data.level[row][col] != '0':
+                data.buttonCount += 1
                 if data.level[row][col].isalpha():
                     if data.level[row][col].isupper():
                         path = "assets/main%s.png" % data.level[row][col]
@@ -106,8 +110,9 @@ def init(data):
 
     data.lineTuples = getLineTuples(data)                                       # Generate lines
 
-    data.drawnButtons = {'A': [], 'B': [], 'last': None}
-    data.drawnLines = {'A': [], 'B': []}
+    data.drawnButtons = {'A': [], 'B': [], 'C': [], 'last': None}
+    data.drawnLines = {'A': [], 'B': [], 'C': []}
+    data.solvedButtons = set()
 
 def run():
     class Struct(object): pass
@@ -147,8 +152,10 @@ def run():
                                 while data.drawnButtons[data.currColor]:
                                     data.drawnButtons[data.currColor][-1].active -= 1
                                     data.drawnButtons[data.currColor][-1].img = data.drawnButtons[data.currColor][-1].inactiveImg
+                                    data.solvedButtons.discard(data.drawnButtons[data.currColor][-1])
                                     data.drawnButtons[data.currColor].pop()
                                 data.drawnButtons[data.currColor] = [button]
+                                data.solvedButtons.add(button)
                         elif ((not button.color or button.color == data.currColor)
                                   and abs(button.row-data.currRow)<=1 and abs(button.col-data.currCol)<=1
                                   and data.drawnButtons['last']!=button):
@@ -159,7 +166,8 @@ def run():
                                 data.currRow, data.currCol = button.row, button.col
                                 data.drawnButtons[data.currColor][-1].active -= 1
                                 data.drawnButtons[data.currColor][-1].img = data.drawnButtons[data.currColor][-1].inactiveImg
-                                data.drawnButtons['last'] = data.drawnButtons[data.currColor][-2]
+                                data.solvedButtons.discard(data.drawnButtons[data.currColor][-1])
+                                data.drawnButtons['last'] = button
                                 data.drawnButtons[data.currColor].pop()
                                 data.drawnLines[data.currColor].pop()
                             if not data.drawnButtons[data.currColor] or data.drawnButtons[data.currColor][-1] != button:
@@ -178,8 +186,9 @@ def run():
                                         otherDiag = ((oldC[0]+data.cellSize, oldC[1]), (newC[0]-data.cellSize, newC[1]))
                                     elif button.row-data.currRow == 1 and button.col-data.currCol == -1:        # NE -> SW
                                         otherDiag = ((oldC[0]-data.cellSize, oldC[1]), (newC[0]+data.cellSize, newC[1]))
-                                    if otherDiag in data.drawnLines[key] or (otherDiag[1], otherDiag[0]) in data.drawnLines[key]:
-                                        lineValid = False
+                                    for key in data.drawnLines.keys():
+                                        if otherDiag in data.drawnLines[key] or (otherDiag[1], otherDiag[0]) in data.drawnLines[key]:
+                                            lineValid = False
                                 if button.active < button.passes and lineValid:
                                     if not button.isRotating and not button.hasRotated:
                                         button.isRotating = True
@@ -190,7 +199,9 @@ def run():
                                     data.drawnButtons[data.currColor].append(button)
                                     data.drawnLines[data.currColor].append(newLine)
                                     data.drawnButtons['last'] = button
-                                    if button.active == button.passes: button.img = button.activeImg
+                                    if button.active == button.passes:
+                                        button.img = button.activeImg
+                                        data.solvedButtons.add(button)
                     else:
                         if button.hasRotated: button.rotateReset = True
 
@@ -223,6 +234,9 @@ def run():
                     onoffImgRect.center = onoffImgCenter
                     if each < button.active: screen.blit(data.onImg, onoffImgRect)
                     else: screen.blit(data.offImg, onoffImgRect)
+
+        if len(data.solvedButtons) == data.buttonCount: print("Solved!")
+
         pygame.display.update()
 
 run()
