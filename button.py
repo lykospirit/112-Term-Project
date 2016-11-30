@@ -10,6 +10,7 @@ class Button(pygame.sprite.Sprite):
         self.rect = self.img.get_rect()
         self.img.set_colorkey(bkgrnd)
         self.angle, self.isRotating = 0, False
+        self.hasRotated, self.rotateReset = 0, False
 
     def rotate(self):
         if self.isRotating:
@@ -20,3 +21,4 @@ class Button(pygame.sprite.Sprite):
             if self.angle == -90:
                 self.angle = 0
                 self.isRotating = False
+                self.hasRotated = 30

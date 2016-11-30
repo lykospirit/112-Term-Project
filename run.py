@@ -5,10 +5,15 @@ from pygame.locals import *
 def getGridCoords(height, width):
     pass
 
+def getLineTuples():                                                            # Returns list of tuples for line oords
+    pass
+
 def init(data):
     data.WINSIZE = (1920, 1080)
     data.THEMEDEEPSPACE = 0
     data.GRIDMARGIN = 60
+
+    data.mouseDown = False
 
     data.theme = data.THEMEDEEPSPACE
     data.colors = [                                                             # Every theme has the following format:
@@ -45,18 +50,26 @@ def run():
                 sys.exit()
             elif event.type == KEYDOWN and event.key == K_ESCAPE:
                 sys.exit()
-            elif event.type == MOUSEBUTTONDOWN:
+            elif event.type == MOUSEBUTTONUP:
+                data.mouseDown = False
+            elif event.type == MOUSEBUTTONDOWN or event.type == MOUSEMOTION:
+                if event.type == MOUSEBUTTONDOWN: data.mouseDown = True
                 x, y = event.pos
                 for button in buttons:
-                    if button.rect.collidepoint(x,y):
-                        if not button.isRotating:
+                    if button.rect.collidepoint(x,y) and data.mouseDown:
+                        if not button.isRotating and not button.hasRotated:
                             button.isRotating = True
                             button.rotate()
+                    else:
+                        if button.hasRotated: button.rotateReset = True
 
         screen.fill(data.colors[data.theme][-1])
         mainA.rect.left, mainA.rect.top = 594, 173
         mainB.rect.left, mainB.rect.top = 594, 413
         for button in buttons:
+            if button.rotateReset:
+                if button.hasRotated: button.hasRotated -= 1
+                else: button.rotateReset = False
             if not button.isRotating: screen.blit(button.img, button.rect)
             else:
                 button.rotate()
