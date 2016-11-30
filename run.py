@@ -2,16 +2,8 @@ import pygame, os, sys, string
 from button import *
 from generator import *
 from solver import *
+from utility import *
 from pygame.locals import *
-
-def get2dIndex(L, obj):
-    for each in range(len(L)):
-        if obj in L[each]:
-            return (each, L[each].index(obj))
-
-def make2dList(rows, cols, val=None):
-    a = [[val]*cols for row in range(rows)]
-    return a
 
 def getGridCoords(data):
     widthGap = (data.WINSIZE[0]-2*data.GRIDMARGIN)//data.levelWidth
@@ -37,11 +29,11 @@ def getLineTuples(data):                                                        
     lineTuples = set()
     for row in range(data.levelHeight):
         for col in range(data.levelWidth):
-            if data.level[row][col]=='0': pass
-            for dirc in DIRS:
-                newR, newC = row+dirc[0], col+dirc[1]
-                if newR>=0 and newC>=0 and newR<data.levelHeight and newC<data.levelWidth and data.level[newR][newC]!='0':
-                    lineTuples.add((data.gridCoords[row][col], data.gridCoords[newR][newC]))
+            if data.level[row][col]!='0':
+                for dirc in DIRS:
+                    newR, newC = row+dirc[0], col+dirc[1]
+                    if newR>=0 and newC>=0 and newR<data.levelHeight and newC<data.levelWidth and data.level[newR][newC]!='0':
+                        lineTuples.add((data.gridCoords[row][col], data.gridCoords[newR][newC]))
     return lineTuples
 
 def init(data):
@@ -235,7 +227,9 @@ def run():
                     if each < button.active: screen.blit(data.onImg, onoffImgRect)
                     else: screen.blit(data.offImg, onoffImgRect)
 
-        if len(data.solvedButtons) == data.buttonCount: print("Solved!")
+        if len(data.solvedButtons) == data.buttonCount:
+            buildLevel(6,4,3)
+            init(data)
 
         pygame.display.update()
 
