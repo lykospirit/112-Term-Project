@@ -3,7 +3,7 @@ from pygame.locals import *
 
 class Button(pygame.sprite.Sprite):
 
-    def __init__(self, path, bkgrnd, size, row, col, passes=1, main=False, color=None):
+    def __init__(self, path, size, row, col, passes=1, main=False, color=None):
         pygame.sprite.Sprite.__init__(self)
         self.inactiveImg = pygame.transform.scale(pygame.image.load(path).convert_alpha(), size)
         if not main:
