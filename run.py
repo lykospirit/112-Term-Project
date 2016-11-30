@@ -12,6 +12,7 @@ def make2dList(rows, cols, val=None):
     return a
 
 def getGridCoords(data):
+
     gap = min((data.WINSIZE[0]-2*data.GRIDMARGIN)//data.levelWidth,
               (data.WINSIZE[1]-2*data.GRIDMARGIN)//data.levelHeight)
     gridCoords = []
@@ -24,14 +25,14 @@ def getGridCoords(data):
 
 def getLineTuples(data):                                                        # Returns list of tuples for line oords
     DIRS = [(0,1), (1,1), (1,0), (1,-1)]
-    lineTuples = []
+    lineTuples = set()
     for row in range(data.levelHeight):
         for col in range(data.levelWidth):
             if data.level[row][col]=='0': pass
             for dirc in DIRS:
                 newR, newC = row+dirc[0], col+dirc[1]
                 if newR>=0 and newC>=0 and newR<data.levelHeight and newC<data.levelWidth and data.level[newR][newC]!='0':
-                    lineTuples.append((data.gridCoords[row][col], data.gridCoords[newR][newC]))
+                    lineTuples.add((data.gridCoords[row][col], data.gridCoords[newR][newC]))
     return lineTuples
 
 def init(data):
@@ -75,13 +76,13 @@ def init(data):
                 if data.level[row][col].isalpha():
                     if data.level[row][col].isupper():
                         path = "assets/main%s.png" % data.level[row][col]
-                        data.buttonList[row][col] = Button(path, data.colors[data.theme][-1], data.buttonSize, main=True)
+                        data.buttonList[row][col] = Button(path, data.colors[data.theme][-1], data.buttonSize, row, col, main=True, color=data.level[row][col])
                     else:
                         path = "assets/one%s.png" % data.level[row][col].upper()
-                        data.buttonList[row][col] = Button(path, data.colors[data.theme][-1], data.buttonSize)
+                        data.buttonList[row][col] = Button(path, data.colors[data.theme][-1], data.buttonSize, row, col, color=data.level[row][col].upper())
                 else:
                     path = "assets/%s.png" % data.level[row][col]
-                    data.buttonList[row][col] = Button(path, data.colors[data.theme][-1], data.buttonSize, int(data.level[row][col]))
+                    data.buttonList[row][col] = Button(path, data.colors[data.theme][-1], data.buttonSize, row, col, int(data.level[row][col]))
                 data.buttons.add(data.buttonList[row][col])
                 data.buttonList[row][col].rect.center = data.gridCoords[row][col]
 
@@ -95,6 +96,8 @@ def init(data):
     data.onoffImgRect = data.onImg.get_rect()
 
     data.lineTuples = getLineTuples(data)                                       # Generate lines
+
+    data.drawnLines = {'A': [], 'B': [], 'last': []}
 
 def run():
     class Struct(object): pass
@@ -113,16 +116,36 @@ def run():
                 sys.exit()
             elif event.type == MOUSEBUTTONUP:
                 data.mouseDown = False
+                data.drawnLines['last'] = []
             elif event.type == MOUSEBUTTONDOWN or event.type == MOUSEMOTION:
                 x, y = event.pos
                 for button in data.buttons:
                     if event.type == MOUSEBUTTONDOWN:
-                        if button.main and button.rect.collidepoint(x,y):
+                        if (button.main or (button.lastColor and data.drawnLines[button.lastColor][-1]==button)) and button.rect.collidepoint(x,y):
                             data.mouseDown = True
+                            data.currColor = button.color
+                            data.currRow, data.currCol = button.row, button.col
                     if button.rect.collidepoint(x,y) and data.mouseDown:
-                        if not button.isRotating and not button.hasRotated:
-                            button.isRotating = True
-                            button.rotate()
+                        if (not button.isRotating and not button.hasRotated and (not button.color or button.color == data.currColor)
+                                                 and abs(button.row-data.currRow)<=1 and abs(button.col-data.currCol)<=1
+                                                 and (not data.drawnLines['last'] or data.drawnLines['last'][-1]!=button)):
+                            if len(data.drawnLines['last'])>1 and data.drawnLines['last'][-2] == button:
+                                button.isRotating = True
+                                button.rotate()
+                                data.currRow, data.currCol = button.row, button.col
+                                data.drawnLines['last'][-1].active -= 1
+                                data.drawnLines['last'][-1].img = data.drawnLines['last'][-1].inactiveImg
+                                data.drawnLines[data.currColor].pop()
+                                data.drawnLines['last'].pop()
+                            if not data.drawnLines[data.currColor] or data.drawnLines[data.currColor][-1] != button:
+                                if button.active < button.passes:
+                                    button.isRotating = True
+                                    button.rotate()
+                                    data.currRow, data.currCol = button.row, button.col
+                                    button.active += 1
+                                    data.drawnLines[data.currColor].append(button)
+                                    data.drawnLines['last'].append(button)
+                                    if button.active == button.passes: button.img = button.activeImg
                     else:
                         if button.hasRotated: button.rotateReset = True
 
@@ -149,7 +172,8 @@ def run():
                                       button.rect.center[1]+(data.ONOFFOFFSETLIST[each][1]*data.onoffOffset))
                     onoffImgRect = data.onoffImgRect
                     onoffImgRect.center = onoffImgCenter
-                    screen.blit(data.offImg, onoffImgRect)
+                    if each < button.active: screen.blit(data.onImg, onoffImgRect)
+                    else: screen.blit(data.offImg, onoffImgRect)
         pygame.display.update()
 
 run()
