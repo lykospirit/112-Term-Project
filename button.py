@@ -3,14 +3,15 @@ from pygame.locals import *
 
 class Button(pygame.sprite.Sprite):
 
-    def __init__(self, path, bkgrnd, size):
+    def __init__(self, path, bkgrnd, size, passes=1, main=False):
         pygame.sprite.Sprite.__init__(self)
-        img = pygame.image.load(path).convert()
+        img = pygame.image.load(path).convert_alpha()
         self.img = pygame.transform.scale(img, size)
         self.rect = self.img.get_rect()
-        self.img.set_colorkey(bkgrnd)
+        self.img.set_colorkey(None)
         self.angle, self.isRotating = 0, False
         self.hasRotated, self.rotateReset = 0, False
+        self.passes, self.main = passes, main
 
     def rotate(self):
         if self.isRotating:
