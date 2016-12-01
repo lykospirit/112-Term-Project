@@ -71,7 +71,7 @@ def buildLevel(rows, cols, colors):
             for col in range(len(level[0])):
                 if isinstance(level[row][col], int):
                     complexity += level[row][col] if level[row][col] else -1
-        if complexity < (rows+cols)*2//3:
+        if complexity < (rows+cols):
             level = make2dList(rows, cols, 0)
             lines = []
             mains = []
@@ -82,3 +82,5 @@ def buildLevel(rows, cols, colors):
         for col in range(len(level[0])):
             level[row][col] = str(level[row][col])
         f.write(' '.join(level[row]) + '\n')
+
+# buildLevel(6,4,2)

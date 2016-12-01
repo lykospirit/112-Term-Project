@@ -57,16 +57,8 @@ def init(data):
                    }
                   ]
 
-    data.level = []
-    level = open('level','r').read()                                            # Load level
-    for line in level.splitlines():
-        data.level.append([])
-        for char in line.split(' '):
-            data.level[-1].append(char)
+    data.level = getLevel()
     data.levelHeight, data.levelWidth = len(data.level), len(data.level[0])
-    for line in range(data.levelHeight):                                        # Check level is rectangular
-        if len(data.level[line]) != data.levelWidth:
-            raise Exception("Invalid level: Remember to add '0's for empty cells!")
 
     data.cellSize, data.gridCoords = getGridCoords(data)                        # Scale assets to fit level
     data.buttonSize = (int(data.CELLMARGIN*data.cellSize), int(data.CELLMARGIN*data.cellSize))
@@ -228,7 +220,7 @@ def run():
                     else: screen.blit(data.offImg, onoffImgRect)
 
         if len(data.solvedButtons) == data.buttonCount:
-            buildLevel(6,4,3)
+            buildLevel(6,4,2)
             init(data)
 
         pygame.display.update()
