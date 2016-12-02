@@ -16,20 +16,19 @@ def drawLine(level, lines, curr, target, color):
         if newPos[0]>=0 and newPos[1]>=0 and newPos[0]<len(level) and newPos[1]<len(level[0]):
             newPosEntry = level[newPos[0]][newPos[1]]
 
-            if (isinstance(newPosEntry, str) and newPosEntry.isupper() and newPosEntry != color) or newPosEntry==4: pass
-            elif (curr, newPos) in lines or (newPos, curr) in lines: pass
+            if (isinstance(newPosEntry, str) and newPosEntry.isupper() and newPosEntry != color) or newPosEntry==4: continue
+            elif (curr, newPos) in lines or (newPos, curr) in lines: continue
             elif abs(dirc[0])==1 and abs(dirc[1])==1:
                 otherDiag = ((curr[0], newPos[1]), (curr[1], newPos[0]))
-                if otherDiag in lines or (otherDiag[1], otherDiag[0]) in lines: pass
-            else:
-                newLines, newLevel = copy.deepcopy(lines), copy.deepcopy(level)
-                newLines.append((curr, newPos))
-                if isinstance(newLevel[newPos[0]][newPos[1]], int):
-                    newLevel[newPos[0]][newPos[1]] += 1
-                elif newLevel[newPos[0]][newPos[1]].islower():
-                    newLevel[newPos[0]][newPos[1]] = 2
-                result = drawLine(newLevel, newLines, newPos, target, color)
-                if result: return result
+                if otherDiag in lines or (otherDiag[1], otherDiag[0]) in lines: continue
+            newLines, newLevel = copy.deepcopy(lines), copy.deepcopy(level)
+            newLines.append((curr, newPos))
+            if isinstance(newLevel[newPos[0]][newPos[1]], int):
+                newLevel[newPos[0]][newPos[1]] += 1
+            elif newLevel[newPos[0]][newPos[1]].islower():
+                newLevel[newPos[0]][newPos[1]] = 2
+            result = drawLine(newLevel, newLines, newPos, target, color)
+            if result: return result
 
     return None
 
@@ -45,7 +44,7 @@ def buildLevel(rows, cols, colors):
             while True:
                 start = (random.randint(0,rows-1), random.randint(0,cols-1))
                 end = (random.randint(0,rows-1), random.randint(0,cols-1))
-                if abs(start[0]-end[0])+abs(start[1]-end[1]) < 3: pass
+                if abs(start[0]-end[0])+abs(start[1]-end[1]) < 3: continue
                 elif start!=end and level[start[0]][start[1]]==0 and level[end[0]][end[1]]==0:
                     level[start[0]][start[1]] = chr(color+65)
                     level[end[0]][end[1]] = chr(color+65)
@@ -83,4 +82,4 @@ def buildLevel(rows, cols, colors):
             level[row][col] = str(level[row][col])
         f.write(' '.join(level[row]) + '\n')
 
-# buildLevel(6,4,2)
+buildLevel(3,3,2)

@@ -29,10 +29,10 @@ def getLineTuples(data):                                                        
     lineTuples = set()
     for row in range(data.levelHeight):
         for col in range(data.levelWidth):
-            if data.level[row][col]!='0':
+            if data.level[row][col]!=0:
                 for dirc in DIRS:
                     newR, newC = row+dirc[0], col+dirc[1]
-                    if newR>=0 and newC>=0 and newR<data.levelHeight and newC<data.levelWidth and data.level[newR][newC]!='0':
+                    if newR>=0 and newC>=0 and newR<data.levelHeight and newC<data.levelWidth and data.level[newR][newC]!=0:
                         lineTuples.add((data.gridCoords[row][col], data.gridCoords[newR][newC]))
     return lineTuples
 
@@ -68,9 +68,9 @@ def init(data):
     data.buttonCount = 0
     for row in range(data.levelHeight):
         for col in range(data.levelWidth):
-            if data.level[row][col] != '0':
+            if data.level[row][col] != 0:
                 data.buttonCount += 1
-                if data.level[row][col].isalpha():
+                if isinstance(data.level[row][col], str):
                     if data.level[row][col].isupper():
                         path = "assets/main%s.png" % data.level[row][col]
                         data.buttonList[row][col] = Button(path, data.buttonSize, row, col, main=True, color=data.level[row][col])
@@ -79,7 +79,7 @@ def init(data):
                         data.buttonList[row][col] = Button(path, data.buttonSize, row, col, color=data.level[row][col].upper())
                 else:
                     path = "assets/%s.png" % data.level[row][col]
-                    data.buttonList[row][col] = Button(path, data.buttonSize, row, col, int(data.level[row][col]))
+                    data.buttonList[row][col] = Button(path, data.buttonSize, row, col, data.level[row][col])
                 data.buttons.add(data.buttonList[row][col])
                 data.buttonList[row][col].rect.center = data.gridCoords[row][col]
 
@@ -220,7 +220,10 @@ def run():
                     else: screen.blit(data.offImg, onoffImgRect)
 
         if len(data.solvedButtons) == data.buttonCount:
-            buildLevel(6,4,2)
+            newLevelRow = random.randint(3,5)
+            newLevelCol = random.randint(3,5)
+            newLevelColor = 2 if newLevelCol==3 and newLevelRow==3 else random.randint(2,3)
+            buildLevel(newLevelRow, newLevelCol, newLevelColor)
             init(data)
 
         pygame.display.update()
