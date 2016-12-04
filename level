@@ -1,5 +1,4 @@
-b 2 2 2 c
-b C 2 3 2
-b A 2 3 A
-C 3 2 B c
-b B c c 0
+C 2 b b c
+b A 2 c c
+a 3 B A C
+B 2 a a a

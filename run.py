@@ -12,8 +12,8 @@ class LevelThread(threading.Thread):
 
     def run(self):
         print('thread started')
-        newLevelRow = 5
-        newLevelCol = 5
+        newLevelRow = random.randint(3,5)
+        newLevelCol = random.randint(3,5)
         if newLevelCol==5 and newLevelRow==5: newLevelColor = 3
         elif newLevelCol==3 and newLevelRow==3: newLevelColor = 2
         else: newLevelColor = random.randint(2,3)
@@ -168,28 +168,32 @@ def run():
                             if not button.isRotating and not button.hasRotated:
                                 button.isRotating = True
                                 button.rotate()
-                            buttonPressColor = button.color if button.color else button.lastColor
-                            if button.main and button not in data.drawnLines[buttonPressColor]:
-                                data.drawnLines[buttonPressColor] = []
-                                while data.drawnButtons[buttonPressColor]:
-                                    data.drawnButtons[buttonPressColor][-1].active -= 1
-                                    data.drawnButtons[buttonPressColor][-1].img = data.drawnButtons[buttonPressColor][-1].inactiveImg
-                                    data.solvedButtons.discard(data.drawnButtons[buttonPressColor][-1])
-                                    data.drawnButtons[buttonPressColor].pop()
-                                data.drawnButtons[buttonPressColor] = [button]
+                            data.currColor = button.color if button.color else button.lastColor
+                            if button.main and button not in data.drawnLines[data.currColor]:
+                                data.drawnLines[data.currColor] = []
+                                while data.drawnButtons[data.currColor]:
+                                    data.drawnButtons[data.currColor][-1].active -= 1
+                                    data.drawnButtons[data.currColor][-1].img = data.drawnButtons[data.currColor][-1].inactiveImg
+                                    data.solvedButtons.discard(data.drawnButtons[data.currColor][-1])
+                                    data.drawnButtons[data.currColor].pop()
+                                data.drawnButtons[data.currColor] = [button]
                                 button.active = 1
                                 data.solvedButtons.add(button)
-                            elif data.drawnButtons[buttonPressColor]:
-                                while data.drawnButtons[buttonPressColor][-1] != button:
-                                    data.drawnLines[buttonPressColor].pop()
-                                    data.drawnButtons[buttonPressColor][-1].active -= 1
-                                    data.drawnButtons[buttonPressColor][-1].img = data.drawnButtons[buttonPressColor][-1].inactiveImg
-                                    data.solvedButtons.discard(data.drawnButtons[buttonPressColor][-1])
-                                    data.drawnButtons[buttonPressColor].pop()
-                                    if not data.drawnButtons[buttonPressColor]: break
+                            elif data.drawnButtons[data.currColor]:
+                                while data.drawnButtons[data.currColor][-1] != button:
+                                    data.drawnLines[data.currColor].pop()
+                                    data.drawnButtons[data.currColor][-1].active -= 1
+                                    data.drawnButtons[data.currColor][-1].img = data.drawnButtons[data.currColor][-1].inactiveImg
+                                    data.solvedButtons.discard(data.drawnButtons[data.currColor][-1])
+                                    data.drawnButtons[data.currColor].pop()
+                                    if not data.drawnButtons[data.currColor]: break
                         elif ((not button.color or button.color == data.currColor)
                                   and abs(button.row-data.currRow)<=1 and abs(button.col-data.currCol)<=1
                                   and data.drawnButtons['last']!=button):
+                            if (len(data.drawnButtons[data.currColor])>1
+                                and data.drawnButtons[data.currColor][0].main
+                                and data.drawnButtons[data.currColor][-1].main):
+                                if button != data.drawnButtons[data.currColor][-2]: continue
                             if len(data.drawnButtons[data.currColor])>1 and data.drawnButtons[data.currColor][-2] == button:
                                 if not button.isRotating and not button.hasRotated:
                                     button.isRotating = True
