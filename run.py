@@ -1,9 +1,23 @@
-import pygame, os, sys, string
+import pygame, os, sys, string, copy, threading, time
 from button import *
 from generator import *
 from solver import *
 from utility import *
 from pygame.locals import *
+
+class LevelThread(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+        self.level, self.solution = None, None
+
+    def run(self):
+        print('thread started')
+        newLevelRow = 5
+        newLevelCol = 5
+        if newLevelCol==5 and newLevelRow==5: newLevelColor = 3
+        elif newLevelCol==3 and newLevelRow==3: newLevelColor = 2
+        else: newLevelColor = random.randint(2,3)
+        self.solution = buildLevel(newLevelRow, newLevelCol, newLevelColor)
 
 def getGridCoords(data):
     widthGap = (data.WINSIZE[0]-2*data.GRIDMARGIN)//data.levelWidth
@@ -58,6 +72,9 @@ def init(data):
                   ]
 
     data.level = getLevel()
+    if data.levelGen: data.solution = copy.deepcopy(data.levelGen.solution)
+    data.levelGen = LevelThread()
+    data.levelGen.start()
     data.levelHeight, data.levelWidth = len(data.level), len(data.level[0])
 
     data.cellSize, data.gridCoords = getGridCoords(data)                        # Scale assets to fit level
@@ -103,11 +120,27 @@ def run():
 
     data = Struct()
     data.WINSIZE = (1920, 1080)
+    # data.WINSIZE = (600,400)
+    data.lastTime = pygame.time.get_ticks()
+    newLevelRow = random.randint(3,5)
+    newLevelCol = random.randint(3,5)
+    if newLevelCol==5 and newLevelRow==5: newLevelColor = 3
+    elif newLevelCol==3 and newLevelRow==3: newLevelColor = 2
+    else: newLevelColor = random.randint(2,3)
+    data.solution = buildLevel(newLevelRow, newLevelCol, newLevelColor)
+    data.levelGen = None
     pygame.init()
     screen = pygame.display.set_mode(data.WINSIZE, pygame.FULLSCREEN)
+    # screen = pygame.display.set_mode(data.WINSIZE)
     init(data)
 
     while True:
+        if pygame.time.get_ticks() - data.lastTime > 500:
+            data.solvedButtons = set()
+            for button in data.buttons:
+                if button.active<0: button.active = 0
+                if button.active == button.passes: data.solvedButtons.add(button)
+            data.lastTime = pygame.time.get_ticks()
         for event in pygame.event.get():
             if event.type == QUIT:
                 sys.exit()
@@ -119,7 +152,11 @@ def run():
                 x, y = event.pos
                 for button in data.buttons:
                     if event.type == MOUSEBUTTONDOWN:
-                        if (button.main or data.drawnButtons['last']==button) and button.rect.collidepoint(x,y):
+                        validButton = False
+                        if button.main: validButton = True
+                        for color in data.drawnButtons.keys():
+                            if color!='last' and button in data.drawnButtons[color]: validButton = True
+                        if validButton and button.rect.collidepoint(x,y):
                             data.mouseDown = True
                             data.currColor = button.color if button.color else button.lastColor
                             data.currRow, data.currCol = button.row, button.col
@@ -131,15 +168,25 @@ def run():
                             if not button.isRotating and not button.hasRotated:
                                 button.isRotating = True
                                 button.rotate()
-                            if button.main:
-                                data.drawnLines[data.currColor] = []
-                                while data.drawnButtons[data.currColor]:
-                                    data.drawnButtons[data.currColor][-1].active -= 1
-                                    data.drawnButtons[data.currColor][-1].img = data.drawnButtons[data.currColor][-1].inactiveImg
-                                    data.solvedButtons.discard(data.drawnButtons[data.currColor][-1])
-                                    data.drawnButtons[data.currColor].pop()
-                                data.drawnButtons[data.currColor] = [button]
+                            buttonPressColor = button.color if button.color else button.lastColor
+                            if button.main and button not in data.drawnLines[buttonPressColor]:
+                                data.drawnLines[buttonPressColor] = []
+                                while data.drawnButtons[buttonPressColor]:
+                                    data.drawnButtons[buttonPressColor][-1].active -= 1
+                                    data.drawnButtons[buttonPressColor][-1].img = data.drawnButtons[buttonPressColor][-1].inactiveImg
+                                    data.solvedButtons.discard(data.drawnButtons[buttonPressColor][-1])
+                                    data.drawnButtons[buttonPressColor].pop()
+                                data.drawnButtons[buttonPressColor] = [button]
+                                button.active = 1
                                 data.solvedButtons.add(button)
+                            elif data.drawnButtons[buttonPressColor]:
+                                while data.drawnButtons[buttonPressColor][-1] != button:
+                                    data.drawnLines[buttonPressColor].pop()
+                                    data.drawnButtons[buttonPressColor][-1].active -= 1
+                                    data.drawnButtons[buttonPressColor][-1].img = data.drawnButtons[buttonPressColor][-1].inactiveImg
+                                    data.solvedButtons.discard(data.drawnButtons[buttonPressColor][-1])
+                                    data.drawnButtons[buttonPressColor].pop()
+                                    if not data.drawnButtons[buttonPressColor]: break
                         elif ((not button.color or button.color == data.currColor)
                                   and abs(button.row-data.currRow)<=1 and abs(button.col-data.currCol)<=1
                                   and data.drawnButtons['last']!=button):
@@ -220,10 +267,6 @@ def run():
                     else: screen.blit(data.offImg, onoffImgRect)
 
         if len(data.solvedButtons) == data.buttonCount:
-            newLevelRow = random.randint(3,5)
-            newLevelCol = random.randint(3,5)
-            newLevelColor = 2 if newLevelCol==3 and newLevelRow==3 else random.randint(2,3)
-            buildLevel(newLevelRow, newLevelCol, newLevelColor)
             init(data)
 
         pygame.display.update()

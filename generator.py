@@ -2,7 +2,7 @@ import numpy as np
 import random, copy, string
 from utility import *
 
-def drawLine(level, lines, curr, target, color):
+def drawLine(level, lines, start, curr, target, color):
     DIRS = [(-1,-1) , (-1, 0) , (-1, 1),
             ( 0,-1) ,           ( 0, 1),
             ( 1,-1) , ( 1, 0) , ( 1, 1)]
@@ -13,13 +13,14 @@ def drawLine(level, lines, curr, target, color):
     for each in range(len(DIRS)):
         dirc = DIRS[order[each]]
         newPos = (curr[0]+dirc[0], curr[1]+dirc[1])
+        if newPos == start: continue
         if newPos[0]>=0 and newPos[1]>=0 and newPos[0]<len(level) and newPos[1]<len(level[0]):
             newPosEntry = level[newPos[0]][newPos[1]]
 
             if (isinstance(newPosEntry, str) and newPosEntry.isupper() and newPosEntry != color) or newPosEntry==4: continue
             elif (curr, newPos) in lines or (newPos, curr) in lines: continue
             elif abs(dirc[0])==1 and abs(dirc[1])==1:
-                otherDiag = ((curr[0], newPos[1]), (curr[1], newPos[0]))
+                otherDiag = ((curr[0], newPos[1]), (newPos[0], curr[1]))
                 if otherDiag in lines or (otherDiag[1], otherDiag[0]) in lines: continue
             newLines, newLevel = copy.deepcopy(lines), copy.deepcopy(level)
             newLines.append((curr, newPos))
@@ -27,7 +28,7 @@ def drawLine(level, lines, curr, target, color):
                 newLevel[newPos[0]][newPos[1]] += 1
             elif newLevel[newPos[0]][newPos[1]].islower():
                 newLevel[newPos[0]][newPos[1]] = 2
-            result = drawLine(newLevel, newLines, newPos, target, color)
+            result = drawLine(newLevel, newLines, start, newPos, target, color)
             if result: return result
 
     return None
@@ -39,6 +40,8 @@ def buildLevel(rows, cols, colors):
     levelBuilt = False
     while not levelBuilt:
         levelBuilt = True
+
+        # Init start/end for all colors
         for color in range(colors):
             mains.append([])
             while True:
@@ -51,8 +54,10 @@ def buildLevel(rows, cols, colors):
                     mains[color].extend([start, end])
                     break
 
+        # Draw line for each color
+        solution = {}
         for color in range(colors):
-            result = drawLine(level, lines, mains[color][0], mains[color][1], chr(color+65))
+            result = drawLine(level, lines, mains[color][0], mains[color][0], mains[color][1], chr(color+65))
             if not result:
                 level = make2dList(rows, cols, 0)
                 lines = []
@@ -61,25 +66,34 @@ def buildLevel(rows, cols, colors):
                 break
             level = copy.deepcopy(result[0])
             lines = copy.deepcopy(result[1])
+            solution[chr(color+65)] = copy.deepcopy(result[1])
             for row in range(len(level)):
                 for col in range(len(level[0])):
                     if level[row][col] == 1: level[row][col] = chr(color+97)
 
-        complexity = 0
-        for row in range(len(level)):
-            for col in range(len(level[0])):
-                if isinstance(level[row][col], int):
-                    complexity += level[row][col] if level[row][col] else -1
-        if complexity < (rows+cols):
-            level = make2dList(rows, cols, 0)
-            lines = []
-            mains = []
-            levelBuilt = False
+        if levelBuilt:
+            for color in range(colors-1, 0, -1):
+                solution[chr(color+65)] = solution[chr(color+65)][len(solution[chr(color+64)]):]
 
+            # Evaluate level
+            complexity = 0
+            for row in range(len(level)):
+                for col in range(len(level[0])):
+                    if isinstance(level[row][col], int):
+                        complexity += level[row][col] if level[row][col] else -1
+            if complexity < (rows+cols):
+                level = make2dList(rows, cols, 0)
+                lines = []
+                mains = []
+                levelBuilt = False
+
+    # Write to file
     f = open('level','w')
     for row in range(len(level)):
         for col in range(len(level[0])):
             level[row][col] = str(level[row][col])
         f.write(' '.join(level[row]) + '\n')
 
-buildLevel(3,3,2)
+    for key in solution.keys():
+        print(key, solution[key])
+    return solution

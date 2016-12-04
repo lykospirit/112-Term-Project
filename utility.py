@@ -25,7 +25,7 @@ def prettyPrint(*args):
 
 def getLevel():
     level = []
-    levelString = open('level','r').read()                                            # Load level
+    levelString = open('level','r').read()                                      # Load level
     for line in levelString.splitlines():
         level.append([])
         for char in line.split(' '):
