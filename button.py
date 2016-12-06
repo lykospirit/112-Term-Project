@@ -16,7 +16,7 @@ class Button(pygame.sprite.Sprite):
         self.angle, self.isRotating = 0, False
         self.hasRotated, self.rotateReset = 0, False
         self.passes, self.main, self.color, self.row, self.col = passes, main, color, row, col
-        self.active, self.lastColor = 0, None
+        self.active, self.lastColor = 0, []
 
     def rotate(self):
         if self.isRotating:

@@ -158,20 +158,24 @@ def run():
                             if color!='last' and button in data.drawnButtons[color]: validButton = True
                         if validButton and button.rect.collidepoint(x,y):
                             data.mouseDown = True
-                            data.currColor = button.color if button.color else button.lastColor
+                            data.currColor = button.color if button.color else button.lastColor[-1]
                             data.currRow, data.currCol = button.row, button.col
                             data.newMouseDown = True
                             data.drawnButtons['last'] = button
                     if button.rect.collidepoint(x,y) and data.mouseDown:
                         if data.newMouseDown:
+                            print(data.currColor)
                             data.newMouseDown = False
                             if not button.isRotating and not button.hasRotated:
                                 button.isRotating = True
                                 button.rotate()
-                            data.currColor = button.color if button.color else button.lastColor
+                            data.currColor = button.color if button.color else button.lastColor[-1]
                             if button.main and button not in data.drawnLines[data.currColor]:
                                 data.drawnLines[data.currColor] = []
                                 while data.drawnButtons[data.currColor]:
+                                    if not data.drawnButtons[data.currColor][-1].color:
+                                        if data.drawnButtons[data.currColor][-1].lastColor[-1] == data.currColor:
+                                            data.drawnButtons[data.currColor][-1].lastColor.pop()
                                     data.drawnButtons[data.currColor][-1].active -= 1
                                     data.drawnButtons[data.currColor][-1].img = data.drawnButtons[data.currColor][-1].inactiveImg
                                     data.solvedButtons.discard(data.drawnButtons[data.currColor][-1])
@@ -181,6 +185,9 @@ def run():
                                 data.solvedButtons.add(button)
                             elif data.drawnButtons[data.currColor]:
                                 while data.drawnButtons[data.currColor][-1] != button:
+                                    if not data.drawnButtons[data.currColor][-1].color:
+                                        if data.drawnButtons[data.currColor][-1].lastColor[-1] == data.currColor:
+                                            data.drawnButtons[data.currColor][-1].lastColor.pop()
                                     data.drawnLines[data.currColor].pop()
                                     data.drawnButtons[data.currColor][-1].active -= 1
                                     data.drawnButtons[data.currColor][-1].img = data.drawnButtons[data.currColor][-1].inactiveImg
@@ -228,7 +235,8 @@ def run():
                                     if not button.isRotating and not button.hasRotated:
                                         button.isRotating = True
                                         button.rotate()
-                                    if not button.color: button.lastColor = data.currColor
+                                    if not button.color and (not button.lastColor or button.lastColor[-1]!=data.currColor):
+                                        button.lastColor.append(data.currColor)
                                     data.currRow, data.currCol = button.row, button.col
                                     button.active += 1
                                     data.drawnButtons[data.currColor].append(button)
