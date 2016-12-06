@@ -19,6 +19,13 @@ class LevelThread(threading.Thread):
         else: newLevelColor = random.randint(2,3)
         self.solution = buildLevel(newLevelRow, newLevelCol, newLevelColor)
 
+def getIntermColor(color1, color2, perc):
+    dR = color2[0]-color1[0]
+    dG = color2[1]-color1[1]
+    dB = color2[2]-color1[2]
+    perc /= 100
+    return (int(color1[0]+dR*perc), int(color1[1]+dG*perc), int(color1[2]+dB*perc))
+
 def getGridCoords(data):
     widthGap = (data.WINSIZE[0]-2*data.GRIDMARGIN)//data.levelWidth
     heightGap = (data.WINSIZE[1]-2*data.GRIDMARGIN)//data.levelHeight
@@ -50,6 +57,41 @@ def getLineTuples(data):                                                        
                         lineTuples.add((data.gridCoords[row][col], data.gridCoords[newR][newC]))
     return lineTuples
 
+def levelGen(data):
+    data.level = getLevel()
+    if data.levelGen: data.solution = copy.deepcopy(data.levelGen.solution)
+    data.levelHeight, data.levelWidth = len(data.level), len(data.level[0])
+    data.whitePerc = 0
+
+    data.cellSize, data.gridCoords = getGridCoords(data)                        # Scale assets to fit level
+    data.buttonSize = (int(data.CELLMARGIN*data.cellSize), int(data.CELLMARGIN*data.cellSize))
+
+    data.buttons = pygame.sprite.Group()                                        # Generate buttons
+    data.buttonList = make2dList(data.levelHeight, data.levelWidth)
+    data.buttonCount = 0
+    for row in range(data.levelHeight):
+        for col in range(data.levelWidth):
+            if data.level[row][col] != 0:
+                data.buttonCount += 1
+                btnCoord = data.gridCoords[row][col]
+                if isinstance(data.level[row][col], str):
+                    if data.level[row][col].isupper():
+                        path = "assets/main%s.png" % data.level[row][col]
+                        data.buttonList[row][col] = Button(path, data.buttonSize, row, col, main=True, color=data.level[row][col])
+                    else:
+                        path = "assets/one%s.png" % data.level[row][col].upper()
+                        data.buttonList[row][col] = Button(path, data.buttonSize, row, col, color=data.level[row][col].upper())
+                else:
+                    path = "assets/%s.png" % data.level[row][col]
+                    data.buttonList[row][col] = Button(path, data.buttonSize, row, col, data.level[row][col])
+                data.buttons.add(data.buttonList[row][col])
+                data.buttonList[row][col].rect.center = btnCoord
+
+    data.lineTuples = getLineTuples(data)                                       # Generate lines
+
+    data.levelGen = LevelThread()
+    data.levelGen.start()
+
 def init(data):
     data.THEMEDEEPSPACE = 0                                                     # CONSTANTS
     data.GRIDMARGIN = 100
@@ -59,6 +101,8 @@ def init(data):
     data.ONOFFOFFSETLIST = [(-1,0), (1,0), (0,-1), (0,1)]
 
     data.mouseDown = False                                                      # Mouse
+    data.scene = 0                                                              # 0: menu/tut; 1: gen; 2: solve
+    data.transiting = False
 
     data.theme = data.THEMEDEEPSPACE
     data.colors = [                                                             # Every theme has the following format:
@@ -71,35 +115,7 @@ def init(data):
                    }
                   ]
 
-    data.level = getLevel()
-    if data.levelGen: data.solution = copy.deepcopy(data.levelGen.solution)
-    data.levelGen = LevelThread()
-    data.levelGen.start()
-    data.levelHeight, data.levelWidth = len(data.level), len(data.level[0])
-
-    data.cellSize, data.gridCoords = getGridCoords(data)                        # Scale assets to fit level
-    data.buttonSize = (int(data.CELLMARGIN*data.cellSize), int(data.CELLMARGIN*data.cellSize))
-
-    data.buttons = pygame.sprite.Group()                                        # Generate buttons
-    data.buttonList = make2dList(data.levelHeight, data.levelWidth)
-    data.buttonCount = 0
-    for row in range(data.levelHeight):
-        for col in range(data.levelWidth):
-            if data.level[row][col] != 0:
-                data.buttonCount += 1
-                if isinstance(data.level[row][col], str):
-                    if data.level[row][col].isupper():
-                        path = "assets/main%s.png" % data.level[row][col]
-                        data.buttonList[row][col] = Button(path, data.buttonSize, row, col, main=True, color=data.level[row][col])
-                    else:
-                        path = "assets/one%s.png" % data.level[row][col].upper()
-                        data.buttonList[row][col] = Button(path, data.buttonSize, row, col, color=data.level[row][col].upper())
-                else:
-                    path = "assets/%s.png" % data.level[row][col]
-                    data.buttonList[row][col] = Button(path, data.buttonSize, row, col, data.level[row][col])
-                data.buttons.add(data.buttonList[row][col])
-                data.buttonList[row][col].rect.center = data.gridCoords[row][col]
-
+    levelGen(data)
                                                                                 # Generate on/off assets
     data.onoffSize = (int(data.buttonSize[0]*data.ONOFFSCALE), int(data.buttonSize[0]*data.ONOFFSCALE))
     data.onoffOffset = int(data.buttonSize[0]*data.ONOFFOFFSETSCALE)
@@ -109,7 +125,6 @@ def init(data):
     data.offImg.set_colorkey(None)
     data.onoffImgRect = data.onImg.get_rect()
 
-    data.lineTuples = getLineTuples(data)                                       # Generate lines
 
     data.drawnButtons = {'A': [], 'B': [], 'C': [], 'last': None}
     data.drawnLines = {'A': [], 'B': [], 'C': []}
@@ -174,7 +189,8 @@ def run():
                                 data.drawnLines[data.currColor] = []
                                 while data.drawnButtons[data.currColor]:
                                     if not data.drawnButtons[data.currColor][-1].color:
-                                        if data.drawnButtons[data.currColor][-1].lastColor[-1] == data.currColor:
+                                        if (data.drawnButtons[data.currColor][-1].lastColor
+                                            and data.drawnButtons[data.currColor][-1].lastColor[-1] == data.currColor):
                                             data.drawnButtons[data.currColor][-1].lastColor.pop()
                                     data.drawnButtons[data.currColor][-1].active -= 1
                                     data.drawnButtons[data.currColor][-1].img = data.drawnButtons[data.currColor][-1].inactiveImg
@@ -186,7 +202,8 @@ def run():
                             elif data.drawnButtons[data.currColor]:
                                 while data.drawnButtons[data.currColor][-1] != button:
                                     if not data.drawnButtons[data.currColor][-1].color:
-                                        if data.drawnButtons[data.currColor][-1].lastColor[-1] == data.currColor:
+                                        if (data.drawnButtons[data.currColor][-1].lastColor
+                                            and data.drawnButtons[data.currColor][-1].lastColor[-1] == data.currColor):
                                             data.drawnButtons[data.currColor][-1].lastColor.pop()
                                     data.drawnLines[data.currColor].pop()
                                     data.drawnButtons[data.currColor][-1].active -= 1
@@ -252,11 +269,21 @@ def run():
 
         ##### LINES #####
         for line in data.lineTuples:
-            pygame.draw.line(screen, data.colors[data.theme][-2], line[0], line[1], 5)
+            lineColor = getIntermColor(data.colors[data.theme][-2], data.colors[data.theme][-1], min(data.whitePerc,100))
+            pygame.draw.line(screen, lineColor, line[0], line[1], 5)
 
         for key in data.drawnLines.keys():
             for each in data.drawnLines[key]:
                 pygame.draw.line(screen, data.colors[data.theme][key][1], each[0], each[1], 20)
+
+        ##### MOUSE FOLLOWERS #####
+        if data.mouseDown:
+            flwClr = data.colors[data.theme][data.currColor][1]
+            alphaColor = (flwClr[0], flwClr[1], flwClr[2], 128)
+            flwSize = (data.buttonSize[0]*2, data.buttonSize[1]*2)
+            flwSurface = pygame.Surface(flwSize, pygame.SRCALPHA)
+            flwSurface.fill(alphaColor)
+            screen.blit(flwSurface, (x-flwSize[0]//2, y-flwSize[1]//2))
 
         ##### BUTTONS #####
         for button in data.buttons:
@@ -279,7 +306,37 @@ def run():
                     else: screen.blit(data.offImg, onoffImgRect)
 
         if len(data.solvedButtons) == data.buttonCount:
-            init(data)
+            white = data.colors[data.theme]['W'][0]
+            if data.whitePerc <= 130:
+                data.whitePerc += 1
+                for key in data.drawnLines.keys():
+                    for line in data.drawnLines[key]:
+                        whiteColor = getIntermColor(data.colors[data.theme][-2], white, min(data.whitePerc,100))
+                        pygame.draw.line(screen, whiteColor, line[0], line[1], 20)
+                for row in range(data.levelHeight):
+                    for col in range(data.levelWidth):
+                        if data.buttonList[row][col]:
+                            btnRect = data.buttonList[row][col].rect
+                            if data.buttonList[row][col].color:
+                                btnColor = data.colors[data.theme][data.buttonList[row][col].color][1]
+                                whiteColor = getIntermColor(btnColor, white, min(data.whitePerc,100))
+                                btnRect = (btnRect.left, btnRect.top, btnRect.width, btnRect.height)
+                                pygame.draw.rect(screen, whiteColor, btnRect)
+                            else:
+                                octCtr, octHgt, octWid = btnRect.center, btnRect.height, btnRect.width
+                                xCoords = (octCtr[0]-octWid//2, octCtr[0]-((2**0.5-1)/2)*octWid,
+                                            octCtr[0]+((2**0.5-1)/2)*octWid, octCtr[0]+octWid//2)
+                                yCoords = (octCtr[1]-octHgt//2, octCtr[1]-((2**0.5-1)/2)*octHgt,
+                                            octCtr[1]+((2**0.5-1)/2)*octHgt, octCtr[1]+octHgt//2)
+                                octCoords = ((xCoords[0], yCoords[1]), (xCoords[1], yCoords[0]),
+                                             (xCoords[2], yCoords[0]), (xCoords[3], yCoords[1]),
+                                             (xCoords[3], yCoords[2]), (xCoords[2], yCoords[3]),
+                                             (xCoords[1], yCoords[3]), (xCoords[0], yCoords[2]))
+                                whiteColor = getIntermColor(data.colors[data.theme]['W'][1], white, min(data.whitePerc, 100))
+                                pygame.draw.polygon(screen, whiteColor, octCoords)
+                                #draw polygon
+            else:
+                init(data)
 
         pygame.display.update()
 
