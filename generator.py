@@ -88,11 +88,11 @@ def buildLevel(rows, cols, colors):
                 levelBuilt = False
 
     # Write to file
-    # f = open('level','w')
-    # for row in range(len(level)):
-    #     for col in range(len(level[0])):
-    #         level[row][col] = str(level[row][col])
-    #     f.write(' '.join(level[row]) + '\n')
+    f = open('level','w')
+    for row in range(len(level)):
+        for col in range(len(level[0])):
+            level[row][col] = str(level[row][col])
+        f.write(' '.join(level[row]) + '\n')
 
     for key in solution.keys():
         print(key, solution[key])

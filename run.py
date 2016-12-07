@@ -57,11 +57,14 @@ def getLineTuples(data):                                                        
                         lineTuples.add((data.gridCoords[row][col], data.gridCoords[newR][newC]))
     return lineTuples
 
+def newLevelGen(data):
+    data.levelGen = LevelThread()
+    data.levelGen.start()
+
 def levelGen(data):
     data.level = getLevel()
     if data.levelGen: data.solution = copy.deepcopy(data.levelGen.solution)
     data.levelHeight, data.levelWidth = len(data.level), len(data.level[0])
-    data.whitePerc = 0
 
     data.cellSize, data.gridCoords = getGridCoords(data)                        # Scale assets to fit level
     data.buttonSize = (int(data.CELLMARGIN*data.cellSize), int(data.CELLMARGIN*data.cellSize))
@@ -89,8 +92,13 @@ def levelGen(data):
 
     data.lineTuples = getLineTuples(data)                                       # Generate lines
 
-    data.levelGen = LevelThread()
-    data.levelGen.start()
+    data.onoffSize = (int(data.buttonSize[0]*data.ONOFFSCALE), int(data.buttonSize[0]*data.ONOFFSCALE))
+    data.onoffOffset = int(data.buttonSize[0]*data.ONOFFOFFSETSCALE)
+    data.onImg = pygame.transform.scale(pygame.image.load("assets/on.png").convert_alpha(), data.onoffSize)
+    data.offImg = pygame.transform.scale(pygame.image.load("assets/off.png").convert_alpha(), data.onoffSize)
+    data.onImg.set_colorkey(None)
+    data.offImg.set_colorkey(None)
+    data.onoffImgRect = data.onImg.get_rect()
 
 def init(data):
     data.THEMEDEEPSPACE = 0                                                     # CONSTANTS
@@ -99,10 +107,17 @@ def init(data):
     data.ONOFFSCALE = 0.2121
     data.ONOFFOFFSETSCALE = 0.153
     data.ONOFFOFFSETLIST = [(-1,0), (1,0), (0,-1), (0,1)]
+    data.LINEWIDTH = 5
+    data.DRAWNLINEWIDTH = data.LINEWIDTH * 5
+    data.SCROLLSPEED = 7
 
     data.mouseDown = False                                                      # Mouse
     data.scene = 0                                                              # 0: menu/tut; 1: gen; 2: solve
+    data.prevScene = None
     data.transiting = False
+    data.transitdX = data.WINSIZE[0]
+    data.whiteTransitdX = 0
+    data.whitePerc = 0
 
     data.theme = data.THEMEDEEPSPACE
     data.colors = [                                                             # Every theme has the following format:
@@ -115,17 +130,13 @@ def init(data):
                    }
                   ]
 
-    levelGen(data)
-                                                                                # Generate on/off assets
-    data.onoffSize = (int(data.buttonSize[0]*data.ONOFFSCALE), int(data.buttonSize[0]*data.ONOFFSCALE))
-    data.onoffOffset = int(data.buttonSize[0]*data.ONOFFOFFSETSCALE)
-    data.onImg = pygame.transform.scale(pygame.image.load("assets/on.png").convert_alpha(), data.onoffSize)
-    data.offImg = pygame.transform.scale(pygame.image.load("assets/off.png").convert_alpha(), data.onoffSize)
-    data.onImg.set_colorkey(None)
-    data.offImg.set_colorkey(None)
-    data.onoffImgRect = data.onImg.get_rect()
+    data.menuButtonSize = (data.WINSIZE[0]//4, data.WINSIZE[0]//20)
+    data.menuGenImg = pygame.transform.scale(pygame.image.load("assets/generate.png").convert_alpha(), data.menuButtonSize)
+    data.menuGenImg.set_colorkey(None)
+    data.menuGenRect = data.menuGenImg.get_rect()
+    data.menuGenRect.center = (data.WINSIZE[0]//2, data.WINSIZE[1]//2)
 
-
+def reset(data):
     data.drawnButtons = {'A': [], 'B': [], 'C': [], 'last': None}
     data.drawnLines = {'A': [], 'B': [], 'C': []}
     data.solvedButtons = set()
@@ -134,8 +145,8 @@ def run():
     class Struct(object): pass
 
     data = Struct()
-    data.WINSIZE = (1920, 1080)
-    # data.WINSIZE = (600,400)
+    # data.WINSIZE = (1920, 1080)
+    data.WINSIZE = (1080,720)
     data.lastTime = pygame.time.get_ticks()
     newLevelRow = random.randint(3,5)
     newLevelCol = random.randint(3,5)
@@ -144,10 +155,14 @@ def run():
     else: newLevelColor = random.randint(2,3)
     data.solution = buildLevel(newLevelRow, newLevelCol, newLevelColor)
     data.levelGen = None
+    data.first = True
     pygame.init()
-    screen = pygame.display.set_mode(data.WINSIZE, pygame.FULLSCREEN)
-    # screen = pygame.display.set_mode(data.WINSIZE)
+    # screen = pygame.display.set_mode(data.WINSIZE, pygame.FULLSCREEN)
+    screen = pygame.display.set_mode(data.WINSIZE)
     init(data)
+    levelGen(data)
+    newLevelGen(data)
+    reset(data)
 
     while True:
         if pygame.time.get_ticks() - data.lastTime > 500:
@@ -160,165 +175,230 @@ def run():
             if event.type == QUIT:
                 sys.exit()
             elif event.type == KEYDOWN and event.key == K_ESCAPE:
-                sys.exit()
+                if data.transiting: continue
+                if data.scene == 1:
+                    data.scene = 0
+                    data.transiting = True
+                    data.prevScene = 1
+                elif data.scene == 0: sys.exit()
             elif event.type == MOUSEBUTTONUP:
                 data.mouseDown = False
             elif event.type == MOUSEBUTTONDOWN or event.type == MOUSEMOTION:
                 x, y = event.pos
-                for button in data.buttons:
-                    if event.type == MOUSEBUTTONDOWN:
-                        validButton = False
-                        if button.main: validButton = True
-                        for color in data.drawnButtons.keys():
-                            if color!='last' and button in data.drawnButtons[color]: validButton = True
-                        if validButton and button.rect.collidepoint(x,y):
-                            data.mouseDown = True
-                            data.currColor = button.color if button.color else button.lastColor[-1]
-                            data.currRow, data.currCol = button.row, button.col
-                            data.newMouseDown = True
-                            data.drawnButtons['last'] = button
-                    if button.rect.collidepoint(x,y) and data.mouseDown:
-                        if data.newMouseDown:
-                            print(data.currColor)
-                            data.newMouseDown = False
-                            if not button.isRotating and not button.hasRotated:
-                                button.isRotating = True
-                                button.rotate()
-                            data.currColor = button.color if button.color else button.lastColor[-1]
-                            if button.main and button not in data.drawnLines[data.currColor]:
-                                data.drawnLines[data.currColor] = []
-                                while data.drawnButtons[data.currColor]:
-                                    if not data.drawnButtons[data.currColor][-1].color:
-                                        if (data.drawnButtons[data.currColor][-1].lastColor
-                                            and data.drawnButtons[data.currColor][-1].lastColor[-1] == data.currColor):
-                                            data.drawnButtons[data.currColor][-1].lastColor.pop()
-                                    data.drawnButtons[data.currColor][-1].active -= 1
-                                    data.drawnButtons[data.currColor][-1].img = data.drawnButtons[data.currColor][-1].inactiveImg
-                                    data.solvedButtons.discard(data.drawnButtons[data.currColor][-1])
-                                    data.drawnButtons[data.currColor].pop()
-                                data.drawnButtons[data.currColor] = [button]
-                                button.active = 1
-                                data.solvedButtons.add(button)
-                            elif data.drawnButtons[data.currColor]:
-                                while data.drawnButtons[data.currColor][-1] != button:
-                                    if not data.drawnButtons[data.currColor][-1].color:
-                                        if (data.drawnButtons[data.currColor][-1].lastColor
-                                            and data.drawnButtons[data.currColor][-1].lastColor[-1] == data.currColor):
-                                            data.drawnButtons[data.currColor][-1].lastColor.pop()
-                                    data.drawnLines[data.currColor].pop()
-                                    data.drawnButtons[data.currColor][-1].active -= 1
-                                    data.drawnButtons[data.currColor][-1].img = data.drawnButtons[data.currColor][-1].inactiveImg
-                                    data.solvedButtons.discard(data.drawnButtons[data.currColor][-1])
-                                    data.drawnButtons[data.currColor].pop()
-                                    if not data.drawnButtons[data.currColor]: break
-                        elif ((not button.color or button.color == data.currColor)
-                                  and abs(button.row-data.currRow)<=1 and abs(button.col-data.currCol)<=1
-                                  and data.drawnButtons['last']!=button):
-                            if (len(data.drawnButtons[data.currColor])>1
-                                and data.drawnButtons[data.currColor][0].main
-                                and data.drawnButtons[data.currColor][-1].main):
-                                if button != data.drawnButtons[data.currColor][-2]: continue
-                            if len(data.drawnButtons[data.currColor])>1 and data.drawnButtons[data.currColor][-2] == button:
+                if data.scene == 0:
+                    if data.menuGenRect.collidepoint(x,y) and event.type == MOUSEBUTTONDOWN:
+                        data.scene = 1
+                        data.transiting = True
+                        data.prevScene = 0
+                        levelGen(data)
+                elif data.scene == 1:
+                    for button in data.buttons:
+                        if event.type == MOUSEBUTTONDOWN:
+                            validButton = False
+                            if button.main: validButton = True
+                            for color in data.drawnButtons.keys():
+                                if color!='last' and button in data.drawnButtons[color]: validButton = True
+                            if validButton and button.rect.collidepoint(x,y):
+                                data.mouseDown = True
+                                data.currColor = button.color if button.color else button.lastColor[-1]
+                                data.currRow, data.currCol = button.row, button.col
+                                data.newMouseDown = True
+                                data.drawnButtons['last'] = button
+                        if button.rect.collidepoint(x,y) and data.mouseDown:
+                            if data.newMouseDown:
+                                print(data.currColor)
+                                data.newMouseDown = False
                                 if not button.isRotating and not button.hasRotated:
                                     button.isRotating = True
                                     button.rotate()
-                                data.currRow, data.currCol = button.row, button.col
-                                data.drawnButtons[data.currColor][-1].active -= 1
-                                data.drawnButtons[data.currColor][-1].img = data.drawnButtons[data.currColor][-1].inactiveImg
-                                data.solvedButtons.discard(data.drawnButtons[data.currColor][-1])
-                                data.drawnButtons['last'] = button
-                                data.drawnButtons[data.currColor].pop()
-                                data.drawnLines[data.currColor].pop()
-                            if not data.drawnButtons[data.currColor] or data.drawnButtons[data.currColor][-1] != button:
-                                lineValid = True
-                                newLine = (data.drawnButtons['last'].rect.center, button.rect.center)
-                                for key in data.drawnLines.keys():
-                                    if newLine in data.drawnLines[key] or (newLine[1], newLine[0]) in data.drawnLines[key]:
-                                        lineValid = False
-                                if abs(button.row-data.currRow)==1 and abs(button.col-data.currCol)==1:
-                                    oldC, newC = data.drawnButtons['last'].rect.center, button.rect.center
-                                    if button.row-data.currRow == 1 and button.col-data.currCol == 1:           # Nw -> SE
-                                        otherDiag = ((oldC[0]+data.cellSize, oldC[1]), (newC[0]-data.cellSize, newC[1]))
-                                    elif button.row-data.currRow == -1 and button.col-data.currCol == -1:       # SE -> NW
-                                        otherDiag = ((oldC[0]-data.cellSize, oldC[1]), (newC[0]+data.cellSize, newC[1]))
-                                    elif button.row-data.currRow == -1 and button.col-data.currCol == 1:        # SW -> NE
-                                        otherDiag = ((oldC[0]+data.cellSize, oldC[1]), (newC[0]-data.cellSize, newC[1]))
-                                    elif button.row-data.currRow == 1 and button.col-data.currCol == -1:        # NE -> SW
-                                        otherDiag = ((oldC[0]-data.cellSize, oldC[1]), (newC[0]+data.cellSize, newC[1]))
-                                    for key in data.drawnLines.keys():
-                                        if otherDiag in data.drawnLines[key] or (otherDiag[1], otherDiag[0]) in data.drawnLines[key]:
-                                            lineValid = False
-                                if button.active < button.passes and lineValid:
+                                data.currColor = button.color if button.color else button.lastColor[-1]
+                                if button.main and button not in data.drawnLines[data.currColor]:
+                                    data.drawnLines[data.currColor] = []
+                                    while data.drawnButtons[data.currColor]:
+                                        if not data.drawnButtons[data.currColor][-1].color:
+                                            if (data.drawnButtons[data.currColor][-1].lastColor
+                                                and data.drawnButtons[data.currColor][-1].lastColor[-1] == data.currColor):
+                                                data.drawnButtons[data.currColor][-1].lastColor.pop()
+                                        data.drawnButtons[data.currColor][-1].active -= 1
+                                        data.drawnButtons[data.currColor][-1].img = data.drawnButtons[data.currColor][-1].inactiveImg
+                                        data.solvedButtons.discard(data.drawnButtons[data.currColor][-1])
+                                        data.drawnButtons[data.currColor].pop()
+                                    data.drawnButtons[data.currColor] = [button]
+                                    button.active = 1
+                                    data.solvedButtons.add(button)
+                                elif data.drawnButtons[data.currColor]:
+                                    while data.drawnButtons[data.currColor][-1] != button:
+                                        if not data.drawnButtons[data.currColor][-1].color:
+                                            if (data.drawnButtons[data.currColor][-1].lastColor
+                                                and data.drawnButtons[data.currColor][-1].lastColor[-1] == data.currColor):
+                                                data.drawnButtons[data.currColor][-1].lastColor.pop()
+                                        data.drawnLines[data.currColor].pop()
+                                        data.drawnButtons[data.currColor][-1].active -= 1
+                                        data.drawnButtons[data.currColor][-1].img = data.drawnButtons[data.currColor][-1].inactiveImg
+                                        data.solvedButtons.discard(data.drawnButtons[data.currColor][-1])
+                                        data.drawnButtons[data.currColor].pop()
+                                        if not data.drawnButtons[data.currColor]: break
+                            elif ((not button.color or button.color == data.currColor)
+                                      and abs(button.row-data.currRow)<=1 and abs(button.col-data.currCol)<=1
+                                      and data.drawnButtons['last']!=button):
+                                if (len(data.drawnButtons[data.currColor])>1
+                                    and data.drawnButtons[data.currColor][0].main
+                                    and data.drawnButtons[data.currColor][-1].main):
+                                    if button != data.drawnButtons[data.currColor][-2]: continue
+                                if len(data.drawnButtons[data.currColor])>1 and data.drawnButtons[data.currColor][-2] == button:
                                     if not button.isRotating and not button.hasRotated:
                                         button.isRotating = True
                                         button.rotate()
-                                    if not button.color and (not button.lastColor or button.lastColor[-1]!=data.currColor):
-                                        button.lastColor.append(data.currColor)
                                     data.currRow, data.currCol = button.row, button.col
-                                    button.active += 1
-                                    data.drawnButtons[data.currColor].append(button)
-                                    data.drawnLines[data.currColor].append(newLine)
+                                    data.drawnButtons[data.currColor][-1].active -= 1
+                                    data.drawnButtons[data.currColor][-1].img = data.drawnButtons[data.currColor][-1].inactiveImg
+                                    data.solvedButtons.discard(data.drawnButtons[data.currColor][-1])
                                     data.drawnButtons['last'] = button
-                                    if button.active == button.passes:
-                                        button.img = button.activeImg
-                                        data.solvedButtons.add(button)
-                    else:
-                        if button.hasRotated: button.rotateReset = True
+                                    data.drawnButtons[data.currColor].pop()
+                                    data.drawnLines[data.currColor].pop()
+                                if not data.drawnButtons[data.currColor] or data.drawnButtons[data.currColor][-1] != button:
+                                    lineValid = True
+                                    newLine = (data.drawnButtons['last'].rect.center, button.rect.center)
+                                    for key in data.drawnLines.keys():
+                                        if newLine in data.drawnLines[key] or (newLine[1], newLine[0]) in data.drawnLines[key]:
+                                            lineValid = False
+                                    if abs(button.row-data.currRow)==1 and abs(button.col-data.currCol)==1:
+                                        oldC, newC = data.drawnButtons['last'].rect.center, button.rect.center
+                                        if button.row-data.currRow == 1 and button.col-data.currCol == 1:           # Nw -> SE
+                                            otherDiag = ((oldC[0]+data.cellSize, oldC[1]), (newC[0]-data.cellSize, newC[1]))
+                                        elif button.row-data.currRow == -1 and button.col-data.currCol == -1:       # SE -> NW
+                                            otherDiag = ((oldC[0]-data.cellSize, oldC[1]), (newC[0]+data.cellSize, newC[1]))
+                                        elif button.row-data.currRow == -1 and button.col-data.currCol == 1:        # SW -> NE
+                                            otherDiag = ((oldC[0]+data.cellSize, oldC[1]), (newC[0]-data.cellSize, newC[1]))
+                                        elif button.row-data.currRow == 1 and button.col-data.currCol == -1:        # NE -> SW
+                                            otherDiag = ((oldC[0]-data.cellSize, oldC[1]), (newC[0]+data.cellSize, newC[1]))
+                                        for key in data.drawnLines.keys():
+                                            if otherDiag in data.drawnLines[key] or (otherDiag[1], otherDiag[0]) in data.drawnLines[key]:
+                                                lineValid = False
+                                    if button.active < button.passes and lineValid:
+                                        if not button.isRotating and not button.hasRotated:
+                                            button.isRotating = True
+                                            button.rotate()
+                                        if not button.color and (not button.lastColor or button.lastColor[-1]!=data.currColor):
+                                            button.lastColor.append(data.currColor)
+                                        data.currRow, data.currCol = button.row, button.col
+                                        button.active += 1
+                                        data.drawnButtons[data.currColor].append(button)
+                                        data.drawnLines[data.currColor].append(newLine)
+                                        data.drawnButtons['last'] = button
+                                        if button.active == button.passes:
+                                            button.img = button.activeImg
+                                            data.solvedButtons.add(button)
+                        else:
+                            if button.hasRotated: button.rotateReset = True
+
+        ################################# DRAW #################################
 
         screen.fill(data.colors[data.theme][-1])
 
-        ##### LINES #####
-        for line in data.lineTuples:
-            lineColor = getIntermColor(data.colors[data.theme][-2], data.colors[data.theme][-1], min(data.whitePerc,100))
-            pygame.draw.line(screen, lineColor, line[0], line[1], 5)
-
-        for key in data.drawnLines.keys():
-            for each in data.drawnLines[key]:
-                pygame.draw.line(screen, data.colors[data.theme][key][1], each[0], each[1], 20)
-
-        ##### MOUSE FOLLOWERS #####
-        if data.mouseDown:
-            flwClr = data.colors[data.theme][data.currColor][1]
-            alphaColor = (flwClr[0], flwClr[1], flwClr[2], 128)
-            flwSize = (data.buttonSize[0]*2, data.buttonSize[1]*2)
-            flwSurface = pygame.Surface(flwSize, pygame.SRCALPHA)
-            flwSurface.fill(alphaColor)
-            screen.blit(flwSurface, (x-flwSize[0]//2, y-flwSize[1]//2))
-
-        ##### BUTTONS #####
-        for button in data.buttons:
-            if button.rotateReset:                                              # Prevent rotating while rotating
-                if button.hasRotated: button.hasRotated -= 1
-                else: button.rotateReset = False
-
-            if not button.isRotating: screen.blit(button.img, button.rect)      # Draw button
+        if data.scene == 0:
+            if data.prevScene == 1:
+                data.transitdX = max(data.transitdX - data.SCROLLSPEED, -data.WINSIZE[0])
+                data.newMenuGenRect = copy.copy(data.menuGenRect)
+                data.newMenuGenRect.center = (data.menuGenRect.center[0]+data.transitdX+data.WINSIZE[0], data.menuGenRect.center[1])
+                screen.blit(data.menuGenImg, data.newMenuGenRect)
+                if data.transitdX == -data.WINSIZE[0]:
+                    data.transiting = False
+                    data.prevScene = 0
+                    data.transitdX = data.WINSIZE[0]
             else:
-                button.rotate()
-                screen.blit(button.rotatedImg, button.rotatedRect)
+                screen.blit(data.menuGenImg, data.menuGenRect)
 
-            if button.passes > 1:                                               # Draw On/Off
-                for each in range(button.passes):
-                    onoffImgCenter = (button.rect.center[0]+(data.ONOFFOFFSETLIST[each][0]*data.onoffOffset),
-                                      button.rect.center[1]+(data.ONOFFOFFSETLIST[each][1]*data.onoffOffset))
-                    onoffImgRect = data.onoffImgRect
-                    onoffImgRect.center = onoffImgCenter
-                    if each < button.active: screen.blit(data.onImg, onoffImgRect)
-                    else: screen.blit(data.offImg, onoffImgRect)
+        if data.scene == 1 or (data.prevScene == 1 and data.transiting):
+            if data.transiting:
+                if data.transitdX >= 0:
+                    data.transitdX = max(data.transitdX - data.SCROLLSPEED, 0)
+                    data.whiteTransitdX = max(data.whiteTransitdX - data.SCROLLSPEED, 0)
+                if data.prevScene == 0:
+                    data.newMenuGenRect = copy.copy(data.menuGenRect)
+                    data.newMenuGenRect.center = (data.menuGenRect.center[0]+data.transitdX-data.WINSIZE[0], data.menuGenRect.center[1])
+                    screen.blit(data.menuGenImg, data.newMenuGenRect)
+                if data.transitdX == 0:
+                    data.transiting = False
+                    data.first = False
+                    data.whitePerc = 0
+                    data.prevScene = 1
+                    reset(data)
+                    newLevelGen(data)
 
-        if len(data.solvedButtons) == data.buttonCount:
-            white = data.colors[data.theme]['W'][0]
-            if data.whitePerc <= 130:
-                data.whitePerc += 1
+            ##### LINES #####
+            for line in data.lineTuples:
+                if data.transiting: lineColor = data.colors[data.theme][-2]
+                else: lineColor = getIntermColor(data.colors[data.theme][-2], data.colors[data.theme][-1], min(data.whitePerc,100))
+                lineTop = (line[0][0]+data.transitdX, line[0][1])
+                lineBtm = (line[1][0]+data.transitdX, line[1][1])
+                pygame.draw.line(screen, lineColor, lineTop, lineBtm, data.LINEWIDTH)
+
+            if not data.transiting:
                 for key in data.drawnLines.keys():
-                    for line in data.drawnLines[key]:
+                    for each in data.drawnLines[key]:
+                        pygame.draw.line(screen, data.colors[data.theme][key][1], each[0], each[1], data.DRAWNLINEWIDTH)
+
+            ##### MOUSE FOLLOWERS #####
+            if data.mouseDown:
+                flwClr = data.colors[data.theme][data.currColor][1]
+                alphaColor = (flwClr[0], flwClr[1], flwClr[2], 128)
+                flwSize = (data.buttonSize[0]*2, data.buttonSize[1]*2)
+                flwSurface = pygame.Surface(flwSize, pygame.SRCALPHA)
+                flwSurface.fill(alphaColor)
+                screen.blit(flwSurface, (x-flwSize[0]//2, y-flwSize[1]//2))
+
+            ##### BUTTONS #####
+            for button in data.buttons:
+                if button.rotateReset:                                          # Prevent rotating while rotating
+                    if button.hasRotated: button.hasRotated -= 1
+                    else: button.rotateReset = False
+
+                if not button.isRotating:                                       # Draw button
+                    transitRect = copy.copy(button.rect)
+                    transitRect.center = (transitRect.center[0]+data.transitdX, transitRect.center[1])
+                    screen.blit(button.img, transitRect)
+                else:
+                    button.rotate()
+                    screen.blit(button.rotatedImg, button.rotatedRect)
+
+                if button.passes > 1:                                           # Draw On/Off
+                    for each in range(button.passes):
+                        onoffImgCenter = (button.rect.center[0]+(data.ONOFFOFFSETLIST[each][0]*data.onoffOffset) + data.transitdX,
+                                          button.rect.center[1]+(data.ONOFFOFFSETLIST[each][1]*data.onoffOffset))
+                        onoffImgRect = data.onoffImgRect
+                        onoffImgRect.center = onoffImgCenter
+                        if each < button.active: screen.blit(data.onImg, onoffImgRect)
+                        else: screen.blit(data.offImg, onoffImgRect)
+
+            if len(data.solvedButtons) == data.buttonCount:
+                white = data.colors[data.theme]['W'][0]
+                data.oldDrawnLines = copy.deepcopy(data.drawnLines)
+                data.oldButtonList = copy.deepcopy(data.buttonList)
+                data.oldLevelHeight = copy.copy(data.levelHeight)
+                data.oldLevelWidth = copy.copy(data.levelWidth)
+                if not data.whiteTransitdX: data.whiteTransitdX = data.WINSIZE[0]
+                if data.whitePerc <= 100:
+                    data.whitePerc += 1.5
+                else:
+                    data.transitdX = data.WINSIZE[0]
+                    data.transiting = True
+                    levelGen(data)
+
+            if not data.first and data.whitePerc:
+                for key in data.oldDrawnLines.keys():
+                    for line in data.oldDrawnLines[key]:
                         whiteColor = getIntermColor(data.colors[data.theme][-2], white, min(data.whitePerc,100))
-                        pygame.draw.line(screen, whiteColor, line[0], line[1], 20)
-                for row in range(data.levelHeight):
-                    for col in range(data.levelWidth):
-                        if data.buttonList[row][col]:
-                            btnRect = data.buttonList[row][col].rect
-                            if data.buttonList[row][col].color:
-                                btnColor = data.colors[data.theme][data.buttonList[row][col].color][1]
+                        lineTop = (line[0][0]+data.whiteTransitdX-data.WINSIZE[0], line[0][1])
+                        lineBtm = (line[1][0]+data.whiteTransitdX-data.WINSIZE[0], line[1][1])
+                        pygame.draw.line(screen, whiteColor, lineTop, lineBtm, data.DRAWNLINEWIDTH)
+                for row in range(data.oldLevelHeight):
+                    for col in range(data.oldLevelWidth):
+                        if data.oldButtonList[row][col]:
+                            btnRect = copy.copy(data.oldButtonList[row][col].rect)
+                            btnRect.center = (btnRect.center[0]+data.whiteTransitdX-data.WINSIZE[0], btnRect.center[1])
+                            if data.oldButtonList[row][col].color:
+                                btnColor = data.colors[data.theme][data.oldButtonList[row][col].color][1]
                                 whiteColor = getIntermColor(btnColor, white, min(data.whitePerc,100))
                                 btnRect = (btnRect.left, btnRect.top, btnRect.width, btnRect.height)
                                 pygame.draw.rect(screen, whiteColor, btnRect)
@@ -334,9 +414,6 @@ def run():
                                              (xCoords[1], yCoords[3]), (xCoords[0], yCoords[2]))
                                 whiteColor = getIntermColor(data.colors[data.theme]['W'][1], white, min(data.whitePerc, 100))
                                 pygame.draw.polygon(screen, whiteColor, octCoords)
-                                #draw polygon
-            else:
-                init(data)
 
         pygame.display.update()
 
