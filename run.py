@@ -19,13 +19,6 @@ class LevelThread(threading.Thread):
         else: newLevelColor = random.randint(2,3)
         self.solution = buildLevel(newLevelRow, newLevelCol, newLevelColor)
 
-def getIntermColor(color1, color2, perc):
-    dR = color2[0]-color1[0]
-    dG = color2[1]-color1[1]
-    dB = color2[2]-color1[2]
-    perc /= 100
-    return (int(color1[0]+dR*perc), int(color1[1]+dG*perc), int(color1[2]+dB*perc))
-
 def getGridCoords(data):
     widthGap = (data.WINSIZE[0]-2*data.GRIDMARGIN)//data.levelWidth
     heightGap = (data.WINSIZE[1]-2*data.GRIDMARGIN)//data.levelHeight
@@ -62,7 +55,7 @@ def newLevelGen(data):
     data.levelGen.start()
 
 def levelGen(data):
-    data.level = getLevel()
+    data.level = copy.deepcopy(data.tutLevels[data.tutProgress]) if data.scene==3 else getLevel()
     if data.levelGen: data.solution = copy.deepcopy(data.levelGen.solution)
     data.levelHeight, data.levelWidth = len(data.level), len(data.level[0])
 
@@ -112,9 +105,9 @@ def init(data):
     data.SCROLLSPEED = 7
 
     data.mouseDown = False                                                      # Mouse
-    data.scene = 0                                                              # 0: menu/tut; 1: gen; 2: solve
-    data.prevScene = None
-    data.transiting = False
+    data.scene = 3                                                              # 0: menu; 1: gen; 2: solve; 3: tut
+    data.prevScene = 3
+    data.transiting = True
     data.transitdX = data.WINSIZE[0]
     data.whiteTransitdX = 0
     data.whitePerc = 0
@@ -136,6 +129,10 @@ def init(data):
     data.menuGenRect = data.menuGenImg.get_rect()
     data.menuGenRect.center = (data.WINSIZE[0]//2, data.WINSIZE[1]//2)
 
+    data.tutLevels = getTutLevels()
+    data.tutProgress = 0
+    data.first = False
+
 def reset(data):
     data.drawnButtons = {'A': [], 'B': [], 'C': [], 'last': None}
     data.drawnLines = {'A': [], 'B': [], 'C': []}
@@ -155,7 +152,6 @@ def run():
     else: newLevelColor = random.randint(2,3)
     data.solution = buildLevel(newLevelRow, newLevelCol, newLevelColor)
     data.levelGen = None
-    data.first = True
     pygame.init()
     # screen = pygame.display.set_mode(data.WINSIZE, pygame.FULLSCREEN)
     screen = pygame.display.set_mode(data.WINSIZE)
@@ -180,7 +176,8 @@ def run():
                     data.scene = 0
                     data.transiting = True
                     data.prevScene = 1
-                elif data.scene == 0: sys.exit()
+                    data.transitdX = 0
+                elif data.scene == 0 or data.scene == 3: sys.exit()
             elif event.type == MOUSEBUTTONUP:
                 data.mouseDown = False
             elif event.type == MOUSEBUTTONDOWN or event.type == MOUSEMOTION:
@@ -188,10 +185,11 @@ def run():
                 if data.scene == 0:
                     if data.menuGenRect.collidepoint(x,y) and event.type == MOUSEBUTTONDOWN:
                         data.scene = 1
+                        data.first = True
                         data.transiting = True
                         data.prevScene = 0
                         levelGen(data)
-                elif data.scene == 1:
+                elif data.scene == 1 or data.scene == 3:
                     for button in data.buttons:
                         if event.type == MOUSEBUTTONDOWN:
                             validButton = False
@@ -206,7 +204,6 @@ def run():
                                 data.drawnButtons['last'] = button
                         if button.rect.collidepoint(x,y) and data.mouseDown:
                             if data.newMouseDown:
-                                print(data.currColor)
                                 data.newMouseDown = False
                                 if not button.isRotating and not button.hasRotated:
                                     button.isRotating = True
@@ -297,7 +294,7 @@ def run():
         screen.fill(data.colors[data.theme][-1])
 
         if data.scene == 0:
-            if data.prevScene == 1:
+            if data.prevScene == 1 or data.prevScene == 3:
                 data.transitdX = max(data.transitdX - data.SCROLLSPEED, -data.WINSIZE[0])
                 data.newMenuGenRect = copy.copy(data.menuGenRect)
                 data.newMenuGenRect.center = (data.menuGenRect.center[0]+data.transitdX+data.WINSIZE[0], data.menuGenRect.center[1])
@@ -309,26 +306,27 @@ def run():
             else:
                 screen.blit(data.menuGenImg, data.menuGenRect)
 
-        if data.scene == 1 or (data.prevScene == 1 and data.transiting):
+        if data.scene==1 or data.scene==3 or data.prevScene==1 or data.prevScene==3:
             if data.transiting:
-                if data.transitdX >= 0:
-                    data.transitdX = max(data.transitdX - data.SCROLLSPEED, 0)
-                    data.whiteTransitdX = max(data.whiteTransitdX - data.SCROLLSPEED, 0)
+                # print('transit', data.transitdX, data.whiteTransitdX)
+                if data.transitdX > 0: data.transitdX = max(data.transitdX - data.SCROLLSPEED, 0)
+                if data.whiteTransitdX > 0: data.whiteTransitdX = max(data.whiteTransitdX - data.SCROLLSPEED, 0)
                 if data.prevScene == 0:
                     data.newMenuGenRect = copy.copy(data.menuGenRect)
                     data.newMenuGenRect.center = (data.menuGenRect.center[0]+data.transitdX-data.WINSIZE[0], data.menuGenRect.center[1])
                     screen.blit(data.menuGenImg, data.newMenuGenRect)
-                if data.transitdX == 0:
+                if data.transitdX == 0 or ((data.prevScene==1 or data.prevScene==3) and data.transitdX == -data.WINSIZE[0]):
                     data.transiting = False
                     data.first = False
                     data.whitePerc = 0
-                    data.prevScene = 1
+                    data.prevScene = 1 if data.scene==1 else 3
                     reset(data)
                     newLevelGen(data)
 
             ##### LINES #####
             for line in data.lineTuples:
-                if data.transiting: lineColor = data.colors[data.theme][-2]
+                if data.transiting and data.scene!=0: lineColor = data.colors[data.theme][-2]
+                elif data.scene==0: lineColor = data.colors[data.theme][-1]
                 else: lineColor = getIntermColor(data.colors[data.theme][-2], data.colors[data.theme][-1], min(data.whitePerc,100))
                 lineTop = (line[0][0]+data.transitdX, line[0][1])
                 lineBtm = (line[1][0]+data.transitdX, line[1][1])
@@ -349,29 +347,32 @@ def run():
                 screen.blit(flwSurface, (x-flwSize[0]//2, y-flwSize[1]//2))
 
             ##### BUTTONS #####
-            for button in data.buttons:
-                if button.rotateReset:                                          # Prevent rotating while rotating
-                    if button.hasRotated: button.hasRotated -= 1
-                    else: button.rotateReset = False
+            if not (data.prevScene==3 and data.scene==0):
+                for button in data.buttons:
+                    if button.rotateReset:                                          # Prevent rotating while rotating
+                        if button.hasRotated: button.hasRotated -= 1
+                        else: button.rotateReset = False
 
-                if not button.isRotating:                                       # Draw button
-                    transitRect = copy.copy(button.rect)
-                    transitRect.center = (transitRect.center[0]+data.transitdX, transitRect.center[1])
-                    screen.blit(button.img, transitRect)
-                else:
-                    button.rotate()
-                    screen.blit(button.rotatedImg, button.rotatedRect)
+                    if not button.isRotating:                                       # Draw button
+                        transitRect = copy.copy(button.rect)
+                        transitRect.center = (transitRect.center[0]+data.transitdX, transitRect.center[1])
+                        screen.blit(button.img, transitRect)
+                    else:
+                        button.rotate()
+                        screen.blit(button.rotatedImg, button.rotatedRect)
 
-                if button.passes > 1:                                           # Draw On/Off
-                    for each in range(button.passes):
-                        onoffImgCenter = (button.rect.center[0]+(data.ONOFFOFFSETLIST[each][0]*data.onoffOffset) + data.transitdX,
-                                          button.rect.center[1]+(data.ONOFFOFFSETLIST[each][1]*data.onoffOffset))
-                        onoffImgRect = data.onoffImgRect
-                        onoffImgRect.center = onoffImgCenter
-                        if each < button.active: screen.blit(data.onImg, onoffImgRect)
-                        else: screen.blit(data.offImg, onoffImgRect)
+                    if button.passes > 1:                                           # Draw On/Off
+                        for each in range(button.passes):
+                            onoffImgCenter = (button.rect.center[0]+(data.ONOFFOFFSETLIST[each][0]*data.onoffOffset) + data.transitdX,
+                                              button.rect.center[1]+(data.ONOFFOFFSETLIST[each][1]*data.onoffOffset))
+                            onoffImgRect = data.onoffImgRect
+                            onoffImgRect.center = onoffImgCenter
+                            if each < button.active: screen.blit(data.onImg, onoffImgRect)
+                            else: screen.blit(data.offImg, onoffImgRect)
 
             if len(data.solvedButtons) == data.buttonCount:
+                if data.scene == 3 and not (data.transiting or data.whitePerc):
+                    data.tutProgress += 1
                 white = data.colors[data.theme]['W'][0]
                 data.oldDrawnLines = copy.deepcopy(data.drawnLines)
                 data.oldButtonList = copy.deepcopy(data.buttonList)
@@ -381,6 +382,8 @@ def run():
                 if data.whitePerc <= 100:
                     data.whitePerc += 1.5
                 else:
+                    if data.scene==3 and data.tutProgress == len(data.tutLevels):
+                        data.scene = 0
                     data.transitdX = data.WINSIZE[0]
                     data.transiting = True
                     levelGen(data)
