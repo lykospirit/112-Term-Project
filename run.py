@@ -6,17 +6,24 @@ from utility import *
 from pygame.locals import *
 
 class LevelThread(threading.Thread):
-    def __init__(self):
+    def __init__(self, difficulty):
         threading.Thread.__init__(self)
         self.level, self.solution = None, None
+        self.difficulty = difficulty
 
     def run(self):
         print('thread started')
-        newLevelRow = random.randint(3,5)
-        newLevelCol = random.randint(3,5)
-        if newLevelCol*newLevelRow>=15: newLevelColor = 3
-        elif newLevelCol==3 and newLevelRow==3: newLevelColor = 2
-        else: newLevelColor = random.randint(2,3)
+        if self.difficulty == 1:
+            newLevelRow = random.randint(3,4)
+            newLevelCol = random.randint(3,4)
+            if newLevelCol==3 and newLevelRow==3: newLevelColor = 2
+            else: newLevelColor = random.randint(2,3)
+        elif self.difficulty == 2:
+            newLevelRow = random.randint(4,6)
+            newLevelCol = random.randint(4,7)
+            if newLevelCol*newLevelRow<24: newLevelColor = random.randint(3,4)
+            elif 24<=newLevelCol*newLevelRow<42: newLevelColor = random.randint(4,5)
+            else: newLevelColor = random.randint(5,6)
         self.solution = buildLevel(newLevelRow, newLevelCol, newLevelColor)
 
 def getGridCoords(data):
@@ -51,7 +58,7 @@ def getLineTuples(data):                                                        
     return lineTuples
 
 def newLevelGen(data):
-    data.levelGen = LevelThread()
+    data.levelGen = LevelThread(data.difficulty)
     data.levelGen.start()
 
 def levelGen(data):
@@ -126,6 +133,9 @@ def init(data):
                     'A': [ (198,0,0)    , (252,31,32)  ],                       # Color 1 (inner, outer) [Red]
                     'B': [ (74,178,255) , (0,134,255)  ],                       # Color 2 (inner, outer) [Blue]
                     'C': [ (206,137,48) , (255,165,21) ],                       # Color 3 (inner, outer) [Yellow]
+                    'D': [ (0,158,0)    , (25,202,25)  ],                       # Color 4 (inner, outer) [Green]
+                    'E': [ (159,0,90)   , (202,25,125) ],                       # Color 5 (inner, outer) [Maroon]
+                    'F': [ (87,51,185)  , (133,99,225) ],                       # Color 6 (inner, outer) [Lilac]
                     'W': [ (239,235,223), (209,207,184)],                       # Square Inner White, Multicell White
                     -2: (59,59,57), -1: (30,30,30)                              # Lines, Background
                    }
@@ -136,10 +146,15 @@ def init(data):
     data.menuGenImg.set_colorkey(None)
     data.menuGenRect = data.menuGenImg.get_rect()
     data.menuGenRect.center = (data.WINSIZE[0]//2, data.WINSIZE[1]//2)
+    data.menuSolvImg = pygame.transform.scale(pygame.image.load("assets/solve.png").convert_alpha(), data.menuButtonSize)
+    data.menuSolvImg.set_colorkey(None)
+    data.menuSolvRect = data.menuSolvImg.get_rect()
+    data.menuSolvRect.center = (data.WINSIZE[0]//2, data.WINSIZE[1]*3//4)
 
     data.tutLevels = getTutLevels()
     data.tutProgress = 0
     data.first = False
+    data.difficulty = 1
 
     data.titleSurface = pygame.Surface(data.WINSIZE)
     data.titleAlpha = 0
@@ -178,8 +193,8 @@ def run():
     data.WINSIZE = (1920, 1080)
     # data.WINSIZE = (1080,720)
     data.lastTime = pygame.time.get_ticks()
-    newLevelRow = random.randint(3,5)
-    newLevelCol = random.randint(3,5)
+    newLevelRow = random.randint(3,4)
+    newLevelCol = random.randint(3,4)
     if newLevelCol*newLevelRow>=15: newLevelColor = 3
     elif newLevelCol==3 and newLevelRow==3: newLevelColor = 2
     else: newLevelColor = random.randint(2,3)
@@ -190,6 +205,7 @@ def run():
     data.levelGen = None
     data.initial = True
     pygame.init()
+    pygame.mixer.init()
     screen = pygame.display.set_mode(data.WINSIZE, pygame.FULLSCREEN)
     # screen = pygame.display.set_mode(data.WINSIZE)
     init(data)
@@ -215,6 +231,10 @@ def run():
                     data.prevScene = 1
                     data.transitdX = 0
                 elif data.scene == 0 or data.scene == 3: sys.exit()
+            elif event.type == KEYDOWN and event.key == K_1:
+                data.difficulty = 1
+            elif event.type == KEYDOWN and event.key == K_2:
+                data.difficulty = 2
             elif event.type == MOUSEBUTTONUP:
                 data.mouseDown = False
                 data.mouseScrollDown = False
@@ -369,6 +389,7 @@ def run():
 
         screen.fill(data.colors[data.theme][-1])
 
+        ##### TITLE #####
         if data.initial:
             data.titleAlpha += 2
             alteredAlpha = -abs(data.titleAlpha-500)+500
@@ -380,18 +401,23 @@ def run():
             pygame.display.update()
             continue
 
+        ##### MENU #####
         if data.scene == 0:
             if data.prevScene == 1 or data.prevScene == 3:
                 data.transitdX = max(data.transitdX - data.SCROLLSPEED, -data.WINSIZE[0])
                 data.newMenuGenRect = copy.copy(data.menuGenRect)
                 data.newMenuGenRect.center = (data.menuGenRect.center[0]+data.transitdX+data.WINSIZE[0], data.menuGenRect.center[1])
+                data.newMenuSolvRect = copy.copy(data.menuSolvRect)
+                data.newMenuSolvRect.center = (data.menuSolvRect.center[0]+data.transitdX+data.WINSIZE[0], data.menuSolvRect.center[1])
                 screen.blit(data.menuGenImg, data.newMenuGenRect)
+                screen.blit(data.menuSolvImg, data.newMenuSolvRect)
                 if data.transitdX == -data.WINSIZE[0]:
                     data.transiting = False
                     data.prevScene = 0
                     data.transitdX = data.WINSIZE[0]
             else:
                 screen.blit(data.menuGenImg, data.menuGenRect)
+                screen.blit(data.menuSolvImg, data.menuSolvRect)
 
         if data.scene==1 or data.scene==3 or data.prevScene==1 or data.prevScene==3:
             if data.transiting:
@@ -403,7 +429,10 @@ def run():
                 if data.prevScene == 0:
                     data.newMenuGenRect = copy.copy(data.menuGenRect)
                     data.newMenuGenRect.center = (data.menuGenRect.center[0]+data.transitdX-data.WINSIZE[0], data.menuGenRect.center[1])
+                    data.newMenuSolvRect = copy.copy(data.menuSolvRect)
+                    data.newMenuSolvRect.center = (data.menuSolvRect.center[0]+data.transitdX-data.WINSIZE[0], data.menuSolvRect.center[1])
                     screen.blit(data.menuGenImg, data.newMenuGenRect)
+                    screen.blit(data.menuSolvImg, data.newMenuSolvRect)
                 if data.transitdX == 0 or ((data.prevScene==1 or data.prevScene==3) and data.transitdX == -data.WINSIZE[0]):
                     data.transiting = False
                     data.first = False

@@ -101,3 +101,4 @@ def buildLevel(rows, cols, colors):
     for key in solution.keys():
         print(key, solution[key])
     return solution
+    # return {'A':[], 'B':[], 'C':[], 'D':[], 'E':[], 'F':[]}
