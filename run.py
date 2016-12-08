@@ -18,6 +18,7 @@ class LevelThread(threading.Thread):
             newLevelCol = random.randint(3,4)
             if newLevelCol==3 and newLevelRow==3: newLevelColor = 2
             else: newLevelColor = random.randint(2,3)
+            newLevelRow, newLevelCol, newLevelColor = 3,3,2
         elif self.difficulty == 2:
             newLevelRow = random.randint(4,6)
             newLevelCol = random.randint(4,7)
@@ -128,6 +129,7 @@ def init(data):
     data.transitdX = data.WINSIZE[0]
     data.whiteTransitdX = 0
     data.whitePerc = 0
+    data.startTime = pygame.time.get_ticks()
 
     data.theme = data.THEMEDEEPSPACE
     data.colors = [                                                             # Every theme has the following format:
@@ -224,12 +226,13 @@ def run():
     data.WINSIZE = (1920, 1080)
     # data.WINSIZE = (1080,720)
     data.lastTime = pygame.time.get_ticks()
-    newLevelRow = random.randint(3,4)
-    newLevelCol = random.randint(3,4)
-    if newLevelCol*newLevelRow>=15: newLevelColor = 3
-    elif newLevelCol==3 and newLevelRow==3: newLevelColor = 2
-    else: newLevelColor = random.randint(2,3)
-    data.solution = buildLevel(newLevelRow, newLevelCol, newLevelColor)
+    # newLevelRow = random.randint(3,4)
+    # newLevelCol = random.randint(3,4)
+    # if newLevelCol*newLevelRow>=15: newLevelColor = 3
+    # elif newLevelCol==3 and newLevelRow==3: newLevelColor = 2
+    # else: newLevelColor = random.randint(2,3)
+    # data.solution = buildLevel(newLevelRow, newLevelCol, newLevelColor)
+    data.solution = buildLevel(3,3,2)
     data.solutionLen = 0
     for key in data.solution.keys():
         data.solutionLen += len(data.solution[key])
@@ -610,7 +613,7 @@ def run():
                     data.solverSurface.set_alpha(min(data.solverAlpha, 255))
                     screen.blit(data.solverSurface, (0,0))
                     if data.solverAlpha >= 255:
-                        levelGen(data, 'solve')
+                        levelGen(data, 'solve.txt')
                         data.solution = solve()
                         data.solutionLen = 0
                         for key in data.solution.keys():

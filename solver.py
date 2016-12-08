@@ -77,7 +77,7 @@ def solve(all=False):
 
         return None
 
-    level = getLevel('solve')
+    level = getLevel('solve.txt')
     lines = []
     colors = getColorNum(level)
     sols = []
@@ -91,5 +91,3 @@ def solve(all=False):
         for color in range(colors-1, 0, -1):
             solution[chr(color+65)] = solution[chr(color+65)][len(solution[chr(color+64)]):]
         return solution
-
-print(solve())

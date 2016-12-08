@@ -1,0 +1,3 @@
+~LButton::
+Send {Ctrl}
+return

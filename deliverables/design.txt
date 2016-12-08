@@ -1,0 +1,82 @@
+################################################################################
+
+run.py - Contains the main functions for detecting clicks & drawing.
+    class LevelThread: Allows for the creation of a thread that generates a
+                        level while animations continue to run
+    getGridCoords: Obtains the positions of the buttons in the level relative to
+                    the user's window size
+    getLineTuples: Same as above, but for lines instead
+
+    newLevelGen: Starts a LevelThread
+
+    levelGen: Grabs a level from the file and defines all its variables
+
+    init: Initializes all the images, sounds and other CONSTANTS
+
+    reset: Resets the dynamic level tracking for each puzzle
+            (The variables in this function change as the player progresses)
+
+    run: Has 3 main parts:
+        - Initialization: Inits pygame, everything else.
+        - (for event in pygame.event.get() .... ):
+            Detects user input & responds accordingly.
+            Most button logic is in here. Scrollbar logic is here as well
+        - (screen.fill(data.colors[data.theme][-1]) .... ):
+            Draws everything onto the screen
+
+################################################################################
+
+solver.py - Takes a level and returns a solution. Achieved using BFS.
+    findAllPaths: Returns every possible path given a level, existing lines, and
+                   the color. A path is any line that can be drawn from the
+                   start to the end
+
+    subtractPath: Given a path for one color, return a level containing the
+                  remaining buttons that still need to be drawn over.
+
+    solve: The main wrapper function for the solver.
+
+################################################################################
+
+button.py - Contains the button class. Buttons are the icons that appear in a
+             puzzle.
+    rotate: Rotates the button (happens when it is pressed)
+
+################################################################################
+
+generator.py - Takes a level size & the number of colors and returns a randomly
+                generated puzzle. Achieved using backtracking.
+    drawLine: Given a start and a target, recursively try to draw a line from
+               the start to the end. Contains the bulk of the backtracking logic
+
+    buildLevel: The main wrapper function for the generator. It evaluates the
+                 generated level for complexity before returning it.
+
+################################################################################
+
+utility.py - Contains most of the functions that are shared across all the files
+              above.
+    make2dList: Makes a 2D list of rows x cols containing val
+
+    get2dIndex: Gets index of obj in a list L
+
+    prettyPrint: Prints 2D lists prettily (mainly for debugging)
+
+    getIntermColor: Returns an intermediate color between color1 and color2.
+                     perc=0 returns color1; perc=100 returns color2.
+
+    mergeDict: Collapses a dict into a single list
+
+    verifyLevel: Verifies that a level is Rectangular
+
+    getLevel: Grabs the level from the file 'level'
+
+    getTutLevels: Grabs the tutorial levels from the file 'tutorial'
+
+    getColorNum: Returns the number of colors in a level
+
+    findStartEnd: Returns the start and end of a color given a level
+
+################################################################################
+
+The assets folder contains all the images and audio used by the game.

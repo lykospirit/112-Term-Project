@@ -1,0 +1,25 @@
+11/22: Pygame Exploratory Analysis                      [2.5 HOURS]
+11/26: Button Class, Animation (Rotation)               [5.5 HOURS]
+11/28: Generating Level from File (Buttons, Lines)      [8.0 HOURS]
+       User can now draw lines
+       Line tracking & endgame state identifiable
+       Primitive Level Generator
+11/30: Initial Solver built                             [6.5 HOURS]
+       Killing bugs in Game
+12/03: Killing even more bugs in Game                   [4.5 HOURS]
+       (Invalid lines being drawn, crashes on specific instances)
+12/04: Killing even more bugs in Game                   [2.0 HOURS]
+       (Crashes that happen with 3 colors)
+12/06: Killed an elusive (and hopefully last) bug       [9.5 HOURS]
+       Level whites out after puzzle completion
+       Main menu built
+       Levels slide in and out of frame
+12/07: Tutorial built                                   [11  HOURS]
+       Menus, tutorials slide in and out of frame
+       Solution reveal slider implemented
+12/08: Sound implemented                                [6.0 HOURS]
+       Solve button implemented
+       New colors added
+       Final deliverables & Video completed
+
+Total time spent: 57.5 hours
