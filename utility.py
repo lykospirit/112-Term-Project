@@ -24,6 +24,13 @@ def getIntermColor(color1, color2, perc):
     perc /= 100
     return (int(color1[0]+dR*perc), int(color1[1]+dG*perc), int(color1[2]+dB*perc))
 
+def mergeDict(d, keys=None):
+    merged = []
+    if not keys: keys = list(d.keys())
+    for key in keys:
+        merged.extend(d[key])
+    return merged
+
 ############################### END OF UTILITIES ###############################
 
 
