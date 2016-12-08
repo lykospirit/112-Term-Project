@@ -1,0 +1,55 @@
+<?xml version="1.0" standalone="no" ?>
+<!DOCTYPE project PUBLIC "-//audacityproject-1.3.0//DTD//EN" "http://audacity.sourceforge.net/xml/audacityproject-1.3.0.dtd" >
+<project xmlns="http://audacity.sourceforge.net/xml/" projname="ding_data" version="1.3.0" audacityversion="2.1.2" sel0="0.0000000000" sel1="2.0039421672" vpos="0" h="0.0000000000" zoom="181.1429520996" rate="44100.0" snapto="off" selectionformat="hh:mm:ss + milliseconds" frequencyformat="Hz" bandwidthformat="octaves">
+	<tags>
+		<tag name="GENRE" value="Blues"/>
+		<tag name="TITLE" value="elevator ding"/>
+		<tag name="ARTIST" value="elevator ding"/>
+	</tags>
+	<wavetrack name="ding" channel="0" linked="1" mute="1" solo="0" height="150" minimized="0" isSelected="0" rate="44100" gain="1.0" pan="0.0">
+		<waveclip offset="0.00000000">
+			<sequence maxsamples="262144" sampleformat="262159" numsamples="427262">
+				<waveblock start="0">
+					<simpleblockfile filename="e000031d.au" len="244447" min="-0.96445" max="0.999498" rms="0.236472"/>
+				</waveblock>
+				<waveblock start="244447">
+					<simpleblockfile filename="e0000ada.au" len="182815" min="-0.011254" max="0.010352" rms="0.001993"/>
+				</waveblock>
+			</sequence>
+			<envelope numpoints="0"/>
+		</waveclip>
+	</wavetrack>
+	<wavetrack name="ding" channel="1" linked="0" mute="1" solo="0" height="150" minimized="0" isSelected="0" rate="44100" gain="1.0" pan="0.0">
+		<waveclip offset="0.00000000">
+			<sequence maxsamples="262144" sampleformat="262159" numsamples="427262">
+				<waveblock start="0">
+					<simpleblockfile filename="e000095f.au" len="244447" min="-0.964522" max="1.000065" rms="0.236645"/>
+				</waveblock>
+				<waveblock start="244447">
+					<simpleblockfile filename="e0000d28.au" len="182815" min="-0.011251" max="0.010468" rms="0.002003"/>
+				</waveblock>
+			</sequence>
+			<envelope numpoints="0"/>
+		</waveclip>
+	</wavetrack>
+	<wavetrack name="ding" channel="0" linked="1" mute="0" solo="0" height="150" minimized="0" isSelected="1" rate="48000" gain="1.0" pan="0.0">
+		<waveclip offset="0.00000000">
+			<sequence maxsamples="262144" sampleformat="262159" numsamples="69956">
+				<waveblock start="0">
+					<simpleblockfile filename="e0000f27.au" len="69956" min="-0.727539" max="0.754059" rms="0.119707"/>
+				</waveblock>
+			</sequence>
+			<envelope numpoints="0"/>
+		</waveclip>
+	</wavetrack>
+	<wavetrack name="ding" channel="1" linked="0" mute="0" solo="0" height="150" minimized="0" isSelected="1" rate="48000" gain="1.0" pan="0.0">
+		<waveclip offset="0.00000000">
+			<sequence maxsamples="262144" sampleformat="262159" numsamples="69956">
+				<waveblock start="0">
+					<simpleblockfile filename="e0000b1f.au" len="69956" min="-0.727661" max="0.75415" rms="0.119822"/>
+				</waveblock>
+			</sequence>
+			<envelope numpoints="0"/>
+		</waveclip>
+	</wavetrack>
+</project>

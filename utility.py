@@ -44,9 +44,9 @@ def verifyLevel(level):                                                         
         if len(level[line]) != levelWidth:
             raise Exception("Invalid level: Remember to add '0's for empty cells!")
 
-def getLevel():
+def getLevel(path='level'):
     level = []
-    levelString = open('level','r').read()                                      # Load level
+    levelString = open(path,'r').read()                                      # Load level
     for line in levelString.splitlines():
         level.append([])
         for char in line.split(' '):

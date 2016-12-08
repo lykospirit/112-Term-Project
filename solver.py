@@ -77,10 +77,19 @@ def solve(all=False):
 
         return None
 
-    level = getLevel()
+    level = getLevel('solve')
     lines = []
     colors = getColorNum(level)
     sols = []
 
     if all: return findAllSolutions(level, colors)
-    else: return findOneSolution(level, lines, colors)
+    else:
+        pathList = findOneSolution(level, lines, colors)
+        solution = {}
+        for key in pathList.keys():
+            solution[key] = copy.deepcopy(pathList[key][1])
+        for color in range(colors-1, 0, -1):
+            solution[chr(color+65)] = solution[chr(color+65)][len(solution[chr(color+64)]):]
+        return solution
+
+print(solve())

@@ -61,8 +61,8 @@ def newLevelGen(data):
     data.levelGen = LevelThread(data.difficulty)
     data.levelGen.start()
 
-def levelGen(data):
-    data.level = copy.deepcopy(data.tutLevels[data.tutProgress]) if data.scene==3 else getLevel()
+def levelGen(data, path='level'):
+    data.level = copy.deepcopy(data.tutLevels[data.tutProgress]) if data.scene==3 else getLevel(path)
     if data.levelGen:
         data.solution = copy.deepcopy(data.levelGen.solution)
         data.solutionLen = 0
@@ -109,7 +109,8 @@ def levelGen(data):
     data.onoffImgRect = data.onImg.get_rect()
 
 def init(data):
-    data.THEMEDEEPSPACE = 0                                                     # CONSTANTS
+    ##### CONSTANTS #####
+    data.THEMEDEEPSPACE = 0
     data.GRIDMARGIN = 100
     data.CELLMARGIN = 0.6
     data.ONOFFSCALE = 0.2121
@@ -118,6 +119,7 @@ def init(data):
     data.LINEWIDTH = 5
     data.DRAWNLINEWIDTH = data.LINEWIDTH * 5
     data.SCROLLSPEED = 9
+    data.DINGNUM = 7
 
     data.mouseDown = False                                                      # Mouse
     data.scene = 3                                                              # 0: menu; 1: gen; 2: solve; 3: tut
@@ -141,6 +143,19 @@ def init(data):
                    }
                   ]
 
+    ##### SOUNDS #####
+    pygame.mixer.init()
+    data.dingSounds = []
+    for ding in range(data.DINGNUM):
+        dingPath = "assets/ding%d.wav" % ding
+        dingSound = pygame.mixer.Sound(dingPath)
+        data.dingSounds.append(pygame.sndarray.array(dingSound))
+    data.dingSoundPlayed = False
+    data.prevDing = 0
+    data.finishSound = pygame.mixer.Sound("assets/finish.wav")
+    data.finishArray = pygame.sndarray.array(data.finishSound)
+
+    ##### MENU #####
     data.menuButtonSize = (data.WINSIZE[0]//3, data.WINSIZE[0]//15)
     data.menuGenImg = pygame.transform.scale(pygame.image.load("assets/generate.png").convert_alpha(), data.menuButtonSize)
     data.menuGenImg.set_colorkey(None)
@@ -151,11 +166,13 @@ def init(data):
     data.menuSolvRect = data.menuSolvImg.get_rect()
     data.menuSolvRect.center = (data.WINSIZE[0]//2, data.WINSIZE[1]*3//4)
 
+    ##### TUTORIAL #####
     data.tutLevels = getTutLevels()
     data.tutProgress = 0
     data.first = False
     data.difficulty = 1
 
+    ##### TITLE SCREEN #####
     data.titleSurface = pygame.Surface(data.WINSIZE)
     data.titleAlpha = 0
     data.titleImg = pygame.transform.scale(pygame.image.load("assets/title.png").convert_alpha(), data.WINSIZE)
@@ -165,6 +182,7 @@ def init(data):
     data.titleSurface.fill(data.colors[data.theme][-1])
     data.titleSurface.blit(data.titleImg, data.titleRect)
 
+    ##### SCROLLBAR & SCROLLER #####
     data.scrollbarImgSize = (data.WINSIZE[1]*4//100, data.WINSIZE[1]*4//5)
     data.scrollbarImg = pygame.transform.scale(pygame.image.load("assets/scrollbar.png").convert_alpha(), data.scrollbarImgSize)
     data.scrollbarImg.set_colorkey(None)
@@ -180,6 +198,19 @@ def init(data):
     data.scrollerMaxPos = data.scrollbarRect.top + data.scrollbarRect.height*19//20
     data.scrollerYPos = copy.copy(data.scrollerMinPos)
     data.scrollerRect.center = (data.scrollbarRect.center[0], data.scrollerYPos)
+
+    ##### SOLVER #####
+    data.solverSurface = pygame.Surface(data.WINSIZE)
+    data.solverAlpha = 0
+    data.solvingImg = pygame.transform.scale(pygame.image.load("assets/solving.png").convert_alpha(), data.WINSIZE)
+    data.solvingImg.set_colorkey(None)
+    data.solvingRect = data.solvingImg.get_rect()
+    data.solvingRect.center = (data.WINSIZE[0]//2, data.WINSIZE[1]//2)
+    data.solvedImg = pygame.transform.scale(pygame.image.load("assets/solved.png").convert_alpha(), data.WINSIZE)
+    data.solvedImg.set_colorkey(None)
+    data.solvedRect = data.solvedImg.get_rect()
+    data.solvedRect.center = (data.WINSIZE[0]//2, data.WINSIZE[1]//2)
+    data.solverSolved = False
 
 def reset(data):
     data.drawnButtons = {'A': [], 'B': [], 'C': [], 'D': [], 'E': [], 'F': [], 'last': None}
@@ -205,7 +236,6 @@ def run():
     data.levelGen = None
     data.initial = True
     pygame.init()
-    pygame.mixer.init()
     screen = pygame.display.set_mode(data.WINSIZE, pygame.FULLSCREEN)
     # screen = pygame.display.set_mode(data.WINSIZE)
     init(data)
@@ -230,7 +260,7 @@ def run():
                     data.transiting = True
                     data.prevScene = 1
                     data.transitdX = 0
-                elif data.scene == 0 or data.scene == 3: sys.exit()
+                elif data.scene == 0 or data.scene == 3 or data.scene == 2: sys.exit()
             elif event.type == KEYDOWN and event.key == K_1:
                 data.difficulty = 1
             elif event.type == KEYDOWN and event.key == K_2:
@@ -238,6 +268,7 @@ def run():
             elif event.type == MOUSEBUTTONUP:
                 data.mouseDown = False
                 data.mouseScrollDown = False
+                data.dingSoundPlayed = False
             elif event.type == MOUSEBUTTONDOWN or event.type == MOUSEMOTION:
                 x, y = event.pos
                 if data.scene == 0:
@@ -246,9 +277,21 @@ def run():
                         data.first = True
                         data.transiting = True
                         data.prevScene = 0
+                        if not data.dingSoundPlayed:
+                            pygame.sndarray.make_sound(data.finishArray).play()
+                            data.dingSoundPlayed = True
                         levelGen(data)
+                    elif data.menuSolvRect.collidepoint(x,y) and event.type == MOUSEBUTTONDOWN:
+                        data.scene = 2
+                        data.transiting = True
+                        data.prevScene = 0
+                        if not data.dingSoundPlayed:
+                            pygame.sndarray.make_sound(data.finishArray).play()
+                            data.dingSoundPlayed = True
+
                 elif data.scene == 1 or data.scene == 3:
                     ##### BUTTONS #####
+                    inButton = False
                     for button in data.buttons:
                         if event.type == MOUSEBUTTONDOWN:
                             validButton = False
@@ -262,8 +305,16 @@ def run():
                                 data.newMouseDown = True
                                 data.drawnButtons['last'] = button
                         if button.rect.collidepoint(x,y) and data.mouseDown:
+                            inButton = True
                             if data.newMouseDown:
                                 data.newMouseDown = False
+                                if not data.dingSoundPlayed and len(data.solvedButtons)!=data.buttonCount:
+                                    dingSoundNum = data.prevDing
+                                    while dingSoundNum == data.prevDing:
+                                        dingSoundNum = random.randint(0, data.DINGNUM-1)
+                                    pygame.sndarray.make_sound(data.dingSounds[dingSoundNum]).play()
+                                    data.dingSoundPlayed = True
+                                    data.prevDing = dingSoundNum
                                 if not button.isRotating and not button.hasRotated:
                                     button.isRotating = True
                                     button.rotate()
@@ -345,8 +396,17 @@ def run():
                                         if button.active == button.passes:
                                             button.img = button.activeImg
                                             data.solvedButtons.add(button)
+                                if not data.dingSoundPlayed and len(data.solvedButtons)!=data.buttonCount:
+                                    dingSoundNum = data.prevDing
+                                    while dingSoundNum == data.prevDing:
+                                        dingSoundNum = random.randint(0, data.DINGNUM-1)
+                                    pygame.sndarray.make_sound(data.dingSounds[dingSoundNum]).play()
+                                    data.dingSoundPlayed = True
+                                    data.prevDing = dingSoundNum
                         else:
                             if button.hasRotated: button.rotateReset = True
+
+                    if not inButton: data.dingSoundPlayed = False
 
                     ##### SCROLLBAR #####
                     if data.scene == 1:
@@ -392,10 +452,10 @@ def run():
         ##### TITLE #####
         if data.initial:
             data.titleAlpha += 2
-            alteredAlpha = -abs(data.titleAlpha-500)+500
+            alteredAlpha = -abs(data.titleAlpha-600)+600
             data.titleSurface.set_alpha(min(alteredAlpha, 255))
             screen.blit(data.titleSurface, (0,0))
-            if data.titleAlpha==1000:
+            if data.titleAlpha==1200:
                 data.initial = False
                 data.transiting = True
             pygame.display.update()
@@ -419,7 +479,7 @@ def run():
                 screen.blit(data.menuGenImg, data.menuGenRect)
                 screen.blit(data.menuSolvImg, data.menuSolvRect)
 
-        if data.scene==1 or data.scene==3 or data.prevScene==1 or data.prevScene==3:
+        if data.scene==1 or data.scene==2 or data.scene==3 or data.prevScene==1 or data.prevScene==3:
             if data.transiting:
                 # print('transit', data.transitdX, data.whiteTransitdX)
                 if data.transitdX > 0:
@@ -433,6 +493,10 @@ def run():
                     data.newMenuSolvRect.center = (data.menuSolvRect.center[0]+data.transitdX-data.WINSIZE[0], data.menuSolvRect.center[1])
                     screen.blit(data.menuGenImg, data.newMenuGenRect)
                     screen.blit(data.menuSolvImg, data.newMenuSolvRect)
+                elif data.prevScene == 2:
+                    data.newSolvedRect = copy.copy(data.solvedRect)
+                    data.newSolvedRect.center = (data.solvedRect.center[0]+data.transitdX-data.WINSIZE[0], data.solvedRect.center[1])
+                    screen.blit(data.solvedImg, data.newSolvedRect)
                 if data.transitdX == 0 or ((data.prevScene==1 or data.prevScene==3) and data.transitdX == -data.WINSIZE[0]):
                     data.transiting = False
                     data.first = False
@@ -441,101 +505,131 @@ def run():
                     reset(data)
                     newLevelGen(data)
 
-            ##### LINES #####
-            for line in data.lineTuples:
-                if data.transiting and data.scene!=0: lineColor = data.colors[data.theme][-2]
-                elif data.scene==0: lineColor = data.colors[data.theme][-1]
-                else: lineColor = getIntermColor(data.colors[data.theme][-2], data.colors[data.theme][-1], min(data.whitePerc,100))
-                lineTop = (line[0][0]+data.transitdX, line[0][1])
-                lineBtm = (line[1][0]+data.transitdX, line[1][1])
-                pygame.draw.line(screen, lineColor, lineTop, lineBtm, data.LINEWIDTH)
+            if not data.scene==2:
+                ##### LINES #####
+                for line in data.lineTuples:
+                    if data.transiting and data.scene!=0: lineColor = data.colors[data.theme][-2]
+                    elif data.scene==0: lineColor = data.colors[data.theme][-1]
+                    else: lineColor = getIntermColor(data.colors[data.theme][-2], data.colors[data.theme][-1], min(data.whitePerc,100))
+                    lineTop = (line[0][0]+data.transitdX, line[0][1])
+                    lineBtm = (line[1][0]+data.transitdX, line[1][1])
+                    pygame.draw.line(screen, lineColor, lineTop, lineBtm, data.LINEWIDTH)
 
-            if not data.transiting:
-                for key in data.drawnLines.keys():
-                    for each in data.drawnLines[key]:
-                        pygame.draw.line(screen, data.colors[data.theme][key][1], each[0], each[1], data.DRAWNLINEWIDTH)
+                if not data.transiting:
+                    for key in data.drawnLines.keys():
+                        for each in data.drawnLines[key]:
+                            pygame.draw.line(screen, data.colors[data.theme][key][1], each[0], each[1], data.DRAWNLINEWIDTH)
 
-            ##### MOUSE FOLLOWERS #####
-            if data.mouseDown:
-                flwClr = data.colors[data.theme][data.currColor][1]
-                alphaColor = (flwClr[0], flwClr[1], flwClr[2], 128)
-                flwSize = (data.buttonSize[0]*2, data.buttonSize[1]*2)
-                flwSurface = pygame.Surface(flwSize, pygame.SRCALPHA)
-                flwSurface.fill(alphaColor)
-                screen.blit(flwSurface, (x-flwSize[0]//2, y-flwSize[1]//2))
+                ##### MOUSE FOLLOWERS #####
+                if data.mouseDown:
+                    flwClr = data.colors[data.theme][data.currColor][1]
+                    alphaColor = (flwClr[0], flwClr[1], flwClr[2], 128)
+                    flwSize = (data.buttonSize[0]*2, data.buttonSize[1]*2)
+                    flwSurface = pygame.Surface(flwSize, pygame.SRCALPHA)
+                    flwSurface.fill(alphaColor)
+                    screen.blit(flwSurface, (x-flwSize[0]//2, y-flwSize[1]//2))
 
-            ##### BUTTONS #####
-            if not (data.prevScene==3 and data.scene==0):
-                for button in data.buttons:
-                    if button.rotateReset:                                      # Prevent rotating while rotating
-                        if button.hasRotated: button.hasRotated -= 1
-                        else: button.rotateReset = False
+                ##### BUTTONS #####
+                if not (data.prevScene==3 and data.scene==0):
+                    for button in data.buttons:
+                        if button.rotateReset:                                      # Prevent rotating while rotating
+                            if button.hasRotated: button.hasRotated -= 1
+                            else: button.rotateReset = False
 
-                    if not button.isRotating:                                   # Draw button
-                        transitRect = copy.copy(button.rect)
-                        transitRect.center = (transitRect.center[0]+data.transitdX, transitRect.center[1])
-                        screen.blit(button.img, transitRect)
+                        if not button.isRotating:                                   # Draw button
+                            transitRect = copy.copy(button.rect)
+                            transitRect.center = (transitRect.center[0]+data.transitdX, transitRect.center[1])
+                            screen.blit(button.img, transitRect)
+                        else:
+                            button.rotate()
+                            screen.blit(button.rotatedImg, button.rotatedRect)
+
+                        if button.passes > 1:                                       # Draw On/Off
+                            for each in range(button.passes):
+                                onoffImgCenter = (button.rect.center[0]+(data.ONOFFOFFSETLIST[each][0]*data.onoffOffset) + data.transitdX,
+                                                  button.rect.center[1]+(data.ONOFFOFFSETLIST[each][1]*data.onoffOffset))
+                                onoffImgRect = data.onoffImgRect
+                                onoffImgRect.center = onoffImgCenter
+                                if each < button.active: screen.blit(data.onImg, onoffImgRect)
+                                else: screen.blit(data.offImg, onoffImgRect)
+
+                if len(data.solvedButtons) == data.buttonCount:
+                    data.scrollerYPos = copy.copy(data.scrollerMinPos)
+                    if data.scene == 3 and not (data.transiting or data.whitePerc):
+                        data.tutProgress += 1
+                    white = data.colors[data.theme]['W'][0]
+                    data.oldDrawnLines = copy.deepcopy(data.drawnLines)
+                    data.oldButtonList = copy.deepcopy(data.buttonList)
+                    data.oldLevelHeight = copy.copy(data.levelHeight)
+                    data.oldLevelWidth = copy.copy(data.levelWidth)
+                    if not data.whiteTransitdX: data.whiteTransitdX = data.WINSIZE[0]
+                    if data.whitePerc <= 100:
+                        data.whitePerc += 1.5
                     else:
-                        button.rotate()
-                        screen.blit(button.rotatedImg, button.rotatedRect)
+                        if data.scene==3 and data.tutProgress == len(data.tutLevels):
+                            data.scene = 0
+                        data.transitdX = data.WINSIZE[0]
+                        data.transiting = True
+                        levelGen(data)
 
-                    if button.passes > 1:                                       # Draw On/Off
-                        for each in range(button.passes):
-                            onoffImgCenter = (button.rect.center[0]+(data.ONOFFOFFSETLIST[each][0]*data.onoffOffset) + data.transitdX,
-                                              button.rect.center[1]+(data.ONOFFOFFSETLIST[each][1]*data.onoffOffset))
-                            onoffImgRect = data.onoffImgRect
-                            onoffImgRect.center = onoffImgCenter
-                            if each < button.active: screen.blit(data.onImg, onoffImgRect)
-                            else: screen.blit(data.offImg, onoffImgRect)
-
-            if len(data.solvedButtons) == data.buttonCount:
-                data.scrollerYPos = copy.copy(data.scrollerMinPos)
-                if data.scene == 3 and not (data.transiting or data.whitePerc):
-                    data.tutProgress += 1
-                white = data.colors[data.theme]['W'][0]
-                data.oldDrawnLines = copy.deepcopy(data.drawnLines)
-                data.oldButtonList = copy.deepcopy(data.buttonList)
-                data.oldLevelHeight = copy.copy(data.levelHeight)
-                data.oldLevelWidth = copy.copy(data.levelWidth)
-                if not data.whiteTransitdX: data.whiteTransitdX = data.WINSIZE[0]
-                if data.whitePerc <= 100:
-                    data.whitePerc += 1.5
-                else:
-                    if data.scene==3 and data.tutProgress == len(data.tutLevels):
-                        data.scene = 0
-                    data.transitdX = data.WINSIZE[0]
-                    data.transiting = True
-                    levelGen(data)
-
-            if not data.first and data.whitePerc:
-                for key in data.oldDrawnLines.keys():
-                    for line in data.oldDrawnLines[key]:
-                        whiteColor = getIntermColor(data.colors[data.theme][-2], white, min(data.whitePerc,100))
-                        lineTop = (line[0][0]+data.whiteTransitdX-data.WINSIZE[0], line[0][1])
-                        lineBtm = (line[1][0]+data.whiteTransitdX-data.WINSIZE[0], line[1][1])
-                        pygame.draw.line(screen, whiteColor, lineTop, lineBtm, data.DRAWNLINEWIDTH)
-                for row in range(data.oldLevelHeight):
-                    for col in range(data.oldLevelWidth):
-                        if data.oldButtonList[row][col]:
-                            btnRect = copy.copy(data.oldButtonList[row][col].rect)
-                            btnRect.center = (btnRect.center[0]+data.whiteTransitdX-data.WINSIZE[0], btnRect.center[1])
-                            if data.oldButtonList[row][col].color:
-                                btnColor = data.colors[data.theme][data.oldButtonList[row][col].color][1]
-                                whiteColor = getIntermColor(btnColor, white, min(data.whitePerc,100))
-                                btnRect = (btnRect.left, btnRect.top, btnRect.width, btnRect.height)
-                                pygame.draw.rect(screen, whiteColor, btnRect)
-                            else:
-                                octCtr, octHgt, octWid = btnRect.center, btnRect.height, btnRect.width
-                                xCoords = (octCtr[0]-octWid//2, octCtr[0]-((2**0.5-1)/2)*octWid,
-                                            octCtr[0]+((2**0.5-1)/2)*octWid, octCtr[0]+octWid//2)
-                                yCoords = (octCtr[1]-octHgt//2, octCtr[1]-((2**0.5-1)/2)*octHgt,
-                                            octCtr[1]+((2**0.5-1)/2)*octHgt, octCtr[1]+octHgt//2)
-                                octCoords = ((xCoords[0], yCoords[1]), (xCoords[1], yCoords[0]),
-                                             (xCoords[2], yCoords[0]), (xCoords[3], yCoords[1]),
-                                             (xCoords[3], yCoords[2]), (xCoords[2], yCoords[3]),
-                                             (xCoords[1], yCoords[3]), (xCoords[0], yCoords[2]))
-                                whiteColor = getIntermColor(data.colors[data.theme]['W'][1], white, min(data.whitePerc, 100))
-                                pygame.draw.polygon(screen, whiteColor, octCoords)
+                if not data.first and data.whitePerc:
+                    if 0 < data.whitePerc < 3: pygame.sndarray.make_sound(data.finishArray).play()
+                    for key in data.oldDrawnLines.keys():
+                        for line in data.oldDrawnLines[key]:
+                            whiteColor = getIntermColor(data.colors[data.theme][-2], white, min(data.whitePerc,100))
+                            lineTop = (line[0][0]+data.whiteTransitdX-data.WINSIZE[0], line[0][1])
+                            lineBtm = (line[1][0]+data.whiteTransitdX-data.WINSIZE[0], line[1][1])
+                            pygame.draw.line(screen, whiteColor, lineTop, lineBtm, data.DRAWNLINEWIDTH)
+                    for row in range(data.oldLevelHeight):
+                        for col in range(data.oldLevelWidth):
+                            if data.oldButtonList[row][col]:
+                                btnRect = copy.copy(data.oldButtonList[row][col].rect)
+                                btnRect.center = (btnRect.center[0]+data.whiteTransitdX-data.WINSIZE[0], btnRect.center[1])
+                                if data.oldButtonList[row][col].color:
+                                    btnColor = data.colors[data.theme][data.oldButtonList[row][col].color][1]
+                                    whiteColor = getIntermColor(btnColor, white, min(data.whitePerc,100))
+                                    btnRect = (btnRect.left, btnRect.top, btnRect.width, btnRect.height)
+                                    pygame.draw.rect(screen, whiteColor, btnRect)
+                                else:
+                                    octCtr, octHgt, octWid = btnRect.center, btnRect.height, btnRect.width
+                                    xCoords = (octCtr[0]-octWid//2, octCtr[0]-((2**0.5-1)/2)*octWid,
+                                                octCtr[0]+((2**0.5-1)/2)*octWid, octCtr[0]+octWid//2)
+                                    yCoords = (octCtr[1]-octHgt//2, octCtr[1]-((2**0.5-1)/2)*octHgt,
+                                                octCtr[1]+((2**0.5-1)/2)*octHgt, octCtr[1]+octHgt//2)
+                                    octCoords = ((xCoords[0], yCoords[1]), (xCoords[1], yCoords[0]),
+                                                 (xCoords[2], yCoords[0]), (xCoords[3], yCoords[1]),
+                                                 (xCoords[3], yCoords[2]), (xCoords[2], yCoords[3]),
+                                                 (xCoords[1], yCoords[3]), (xCoords[0], yCoords[2]))
+                                    whiteColor = getIntermColor(data.colors[data.theme]['W'][1], white, min(data.whitePerc, 100))
+                                    pygame.draw.polygon(screen, whiteColor, octCoords)
+            else:
+                if not data.transiting and not data.solverSolved:
+                    data.solverAlpha += 2
+                    data.solverSurface.fill(data.colors[data.theme][-1])
+                    data.solverSurface.blit(data.solvingImg, data.solvingRect)
+                    data.solverSurface.set_alpha(min(data.solverAlpha, 255))
+                    screen.blit(data.solverSurface, (0,0))
+                    if data.solverAlpha >= 255:
+                        levelGen(data, 'solve')
+                        data.solution = solve()
+                        data.solutionLen = 0
+                        for key in data.solution.keys():
+                            data.solutionLen += len(data.solution[key])
+                        data.solutionList = mergeDict(data.solution, data.colorList)
+                        data.solverSolved = True
+                elif data.solverSolved:
+                    data.solverAlpha -= 3
+                    data.solverSurface.fill(data.colors[data.theme][-1])
+                    if data.solverAlpha >= 0: data.solverSurface.blit(data.solvingImg, data.solvingRect)
+                    else: data.solverSurface.blit(data.solvedImg, data.solvedRect)
+                    data.solverSurface.set_alpha(min(abs(data.solverAlpha), 255))
+                    screen.blit(data.solverSurface, (0,0))
+                    if data.solverAlpha <= -255:
+                        data.transiting = True
+                        data.transitdX = data.WINSIZE[0]
+                        data.prevScene = 2
+                        data.scene = 1
+                        data.first = True
 
             ##### SCROLLBAR #####
             if data.scene==1 and data.scrollbarShow:
