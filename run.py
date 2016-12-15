@@ -226,13 +226,13 @@ def run():
     data.WINSIZE = (1920, 1080)
     # data.WINSIZE = (1080,720)
     data.lastTime = pygame.time.get_ticks()
-    # newLevelRow = random.randint(3,4)
-    # newLevelCol = random.randint(3,4)
-    # if newLevelCol*newLevelRow>=15: newLevelColor = 3
-    # elif newLevelCol==3 and newLevelRow==3: newLevelColor = 2
-    # else: newLevelColor = random.randint(2,3)
-    # data.solution = buildLevel(newLevelRow, newLevelCol, newLevelColor)
-    data.solution = buildLevel(3,3,2)
+    newLevelRow = random.randint(3,4)
+    newLevelCol = random.randint(3,4)
+    if newLevelCol*newLevelRow>=15: newLevelColor = 3
+    elif newLevelCol==3 and newLevelRow==3: newLevelColor = 2
+    else: newLevelColor = random.randint(2,3)
+    newLevelRow, newLevelCol, newLevelColor = 3,3,2
+    data.solution = buildLevel(newLevelRow, newLevelCol, newLevelColor)
     data.solutionLen = 0
     for key in data.solution.keys():
         data.solutionLen += len(data.solution[key])
